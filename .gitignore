@@ -1,0 +1,52 @@
+# ── Python / Backend ──────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+venv/
+.venv/
+env/
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Database (never commit the live db)
+*.db
+*.sqlite
+*.sqlite3
+
+# Environment / secrets
+.env
+*.env.local
+
+# ── Node / Frontend ───────────────────────────────────────────────────────────
+node_modules/
+dist/
+.vite/
+*.local
+
+# ── IDE / OS ──────────────────────────────────────────────────────────────────
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*.swo
+Thumbs.db
+
+# ── Docs (internal only) ─────────────────────────────────────────────────────
+docs/
+
+# ── Website (separate repo, symlinked) ────────────────────────────────────────
+website
+
+# ── Docker ────────────────────────────────────────────────────────────────────
+data/
+
+# ── Generated / Temp ──────────────────────────────────────────────────────────
+.playwright-mcp/
+visual-explainer-*.png
+vibefocus-prototype.html
+vibefocus.zip
+.mcp.json

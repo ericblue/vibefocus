@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "vibe_focus": {
+      "command": "/bin/bash",
+      "args": [
+        "-c",
+        "cd /Users/ericblue/Development/vibefocus/mcp-server && source venv/bin/activate && python server.py"
+      ],
+      "env": {
+        "VIBEFOCUS_API_URL": "http://localhost:8000"
+      }
+    }
+  }
+}
