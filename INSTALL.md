@@ -115,28 +115,34 @@ make mcp-inspect
 
 ## Docker
 
-Docker is the easiest way to run VibeFocus without installing Python or Node.js locally.
+Docker is the easiest way to run VibeFocus without installing Python or Node.js locally. Everything runs in a single container.
 
-### Setup
+### Quick Start
 
 ```bash
-# Clone the repo
+docker run -d \
+  -p 8000:8000 \
+  -v ./data:/app/data \
+  -e ANTHROPIC_API_KEY=your_key_here \
+  ericblue/vibefocus:latest
+```
+
+Open `http://localhost:8000` — both the UI and API are served from one port.
+
+### From Source
+
+```bash
 git clone <repo-url> vibefocus
 cd vibefocus
 
-# Copy and configure the backend environment
 cp backend/.env.example backend/.env
 # Edit backend/.env and set your ANTHROPIC_API_KEY
+
+make docker-build    # Build image (first time only)
+make docker-run      # Start container (detached)
 ```
 
-### Run
-
-```bash
-make docker-build    # Build images (first time only)
-make docker-run      # Start containers (detached)
-```
-
-The frontend runs at `http://localhost:5173` and the backend at `http://localhost:8000`.
+The app runs at `http://localhost:8000`.
 
 ### Data Persistence
 
@@ -182,6 +188,7 @@ The MCP server runs outside Docker (it needs access to your local git repos). Wi
 |---|---|---|
 | **Setup** | Requires Python 3.12+, Node.js 18+ | Just Docker |
 | **Hot reload** | Yes (Vite + uvicorn) | Requires rebuild |
+| **Ports** | 8000 (API) + 5173 (UI) | 8000 (single port) |
 | **Database** | `backend/vibefocus.db` | `./data/vibefocus.db` |
 | **Code analysis** | Works (Agent SDK accesses local repos) | Limited (repos not mounted) |
 | **MCP server** | Works fully | Backend only, MCP runs on host |

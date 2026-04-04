@@ -80,11 +80,10 @@ mcp-inspect: ## Inspect MCP server tools
 
 .PHONY: docker-build docker-run docker-stop docker-logs docker-push
 
-docker-build: ## Build Docker images locally (use DOCKER_TAG=x.y.z to tag)
+docker-build: ## Build Docker image (use DOCKER_TAG=x.y.z to tag)
 	DOCKER_BUILDKIT=1 docker compose build
-	docker tag $(DOCKER_IMG)-backend:latest $(DOCKER_REGISTRY)/$(DOCKER_IMG)-backend:$(DOCKER_TAG)
-	docker tag $(DOCKER_IMG)-frontend:latest $(DOCKER_REGISTRY)/$(DOCKER_IMG)-frontend:$(DOCKER_TAG)
-	@echo "Built and tagged $(DOCKER_REGISTRY)/$(DOCKER_IMG)-{backend,frontend}:$(DOCKER_TAG)"
+	docker tag $(DOCKER_IMG)-vibefocus:latest $(DOCKER_REGISTRY)/$(DOCKER_IMG):$(DOCKER_TAG)
+	@echo "Built and tagged $(DOCKER_REGISTRY)/$(DOCKER_IMG):$(DOCKER_TAG)"
 
 docker-run: ## Run Docker containers (detached)
 	docker compose up -d
@@ -96,21 +95,15 @@ docker-stop: ## Stop and remove Docker containers
 docker-logs: ## Tail Docker container logs
 	docker compose logs -f
 
-docker-push: ## Build and push Docker images with provenance attestations
+docker-push: ## Build and push Docker image with provenance attestations
 	@echo "Building and pushing with BuildKit provenance attestations..."
 	docker buildx build \
 		--provenance=true --sbom=true \
-		-t $(DOCKER_REGISTRY)/$(DOCKER_IMG)-backend:$(DOCKER_TAG) \
-		-t $(DOCKER_REGISTRY)/$(DOCKER_IMG)-backend:latest \
-		-f backend/Dockerfile \
+		-t $(DOCKER_REGISTRY)/$(DOCKER_IMG):$(DOCKER_TAG) \
+		-t $(DOCKER_REGISTRY)/$(DOCKER_IMG):latest \
+		-f Dockerfile \
 		--push .
-	docker buildx build \
-		--provenance=true --sbom=true \
-		-t $(DOCKER_REGISTRY)/$(DOCKER_IMG)-frontend:$(DOCKER_TAG) \
-		-t $(DOCKER_REGISTRY)/$(DOCKER_IMG)-frontend:latest \
-		-f frontend/Dockerfile \
-		--push .
-	@echo "Pushed $(DOCKER_REGISTRY)/$(DOCKER_IMG)-{backend,frontend}:$(DOCKER_TAG) with provenance + SBOM"
+	@echo "Pushed $(DOCKER_REGISTRY)/$(DOCKER_IMG):$(DOCKER_TAG) with provenance + SBOM"
 
 # ── Version & Release ────────────────────────────────────────────────────────
 

@@ -52,17 +52,30 @@ Agent SDK reads your actual codebase — detects tech stacks, surfaces TODOs, es
 
 ## Quick Start
 
+### Docker (easiest)
+
+```bash
+docker run -d -p 8000:8000 \
+  -v ./data:/app/data \
+  -e ANTHROPIC_API_KEY=your_key_here \
+  ericblue/vibefocus:latest
+```
+
+Open http://localhost:8000 — that's it.
+
+### From Source
+
 ```bash
 git clone https://github.com/ericblue/vibefocus.git
 cd vibefocus
 make install                    # Install frontend + backend + MCP server
 cp backend/.env.example backend/.env  # Add your ANTHROPIC_API_KEY
-make run                        # Start app at http://localhost:5173
+make run                        # Start app (backend :8000, frontend :5173)
 ```
 
-Requires Python 3.12+, Node 18+, and an [Anthropic API key](https://platform.anthropic.com). Docker is also supported via `make docker-run`.
+Requires Python 3.12+, Node 18+, and an [Anthropic API key](https://platform.anthropic.com).
 
-See **[INSTALL.md](INSTALL.md)** for detailed setup options including custom ports, Docker, MCP server configuration, and local vs Docker comparison.
+See **[INSTALL.md](INSTALL.md)** for detailed setup including custom ports, Docker Compose, and MCP server configuration.
 
 ---
 

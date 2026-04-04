@@ -6,7 +6,9 @@ Run: python main.py
 from contextlib import asynccontextmanager
 from pathlib import Path
 import uvicorn
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 
 from sqlalchemy import inspect as sa_inspect, text
@@ -194,6 +196,18 @@ def health():
 @app.get("/version")
 def version():
     return {"version": APP_VERSION}
+
+
+# ── Serve frontend static files (Docker single-image mode) ──────────────────
+static_dir = Path(__file__).parent / "static"
+if static_dir.is_dir():
+    @app.get("/{full_path:path}")
+    async def serve_frontend(full_path: str):
+        """Serve the built frontend. Falls back to index.html for SPA routing."""
+        file_path = static_dir / full_path
+        if file_path.is_file():
+            return FileResponse(file_path)
+        return FileResponse(static_dir / "index.html")
 
 
 if __name__ == "__main__":
