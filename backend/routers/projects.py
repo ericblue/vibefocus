@@ -439,7 +439,7 @@ def sync_project_git_log(
     if not p.local_path:
         raise HTTPException(400, "Project has no local_path set")
 
-    commits_data = sync_git_log(p.local_path, since=p.last_git_sync_at, fetch_all=fetch_all)
+    commits_data = sync_git_log(p.local_path, since=None if fetch_all else p.last_git_sync_at, fetch_all=fetch_all)
 
     # Get existing SHAs to avoid duplicates
     existing_shas = set(

@@ -43,7 +43,7 @@ export function AnalyticsDashboard() {
       const p = withPath[i]
       setSyncProgress(`${i + 1}/${withPath.length}: ${p.name}`)
       try {
-        const res = await syncMutation.mutateAsync({ projectId: p.id })
+        const res = await syncMutation.mutateAsync({ projectId: p.id, fetchAll: true })
         results.push({ name: p.name, synced: res.synced, total: res.total_commits })
       } catch {
         results.push({ name: p.name, synced: 0, total: 0, error: true })

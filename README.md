@@ -57,11 +57,12 @@ Agent SDK reads your actual codebase — detects tech stacks, surfaces TODOs, es
 ```bash
 docker run -d -p 8000:8000 \
   -v ./data:/app/data \
+  -v /path/to/your/projects:/path/to/your/projects:ro \
   -e ANTHROPIC_API_KEY=your_key_here \
   ericblue/vibefocus:latest
 ```
 
-Open http://localhost:8000 — that's it.
+Open http://localhost:8000. The volume mount to your projects directory enables git sync, code analysis, and AI code exploration.
 
 ### From Source
 

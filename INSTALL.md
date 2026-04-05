@@ -129,6 +129,31 @@ docker run -d \
 
 Open `http://localhost:8000` — both the UI and API are served from one port.
 
+### Mounting Local Repos (recommended)
+
+To enable git sync, code analysis, and code-aware AI chat, mount your development directory into the container. This gives VibeFocus read-only access to your local git repos:
+
+```bash
+docker run -d \
+  -p 8000:8000 \
+  -v ./data:/app/data \
+  -v /Users/you/Development:/Users/you/Development:ro \
+  -e ANTHROPIC_API_KEY=your_key_here \
+  ericblue/vibefocus:latest
+```
+
+Replace `/Users/you/Development` with the parent directory where your git repos live. The path inside the container must match the host path so that `local_path` values on your projects resolve correctly. The `:ro` flag makes it read-only.
+
+If using `docker-compose.yml`, uncomment the volume mount line and set your path:
+
+```yaml
+volumes:
+  - ./data:/app/data
+  - /Users/you/Development:/Users/you/Development:ro
+```
+
+Without this mount, VibeFocus still works but analytics (heatmaps, velocity, streaks) will be empty and code analysis won't be available.
+
 ### From Source
 
 ```bash
