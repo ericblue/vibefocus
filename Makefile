@@ -78,16 +78,29 @@ mcp-inspect: ## Inspect MCP server tools
 
 # ── Docker ───────────────────────────────────────────────────────────────────
 
-.PHONY: docker-build docker-run docker-stop docker-logs docker-push
+.PHONY: docker-build docker-run docker-stop docker-logs docker-push docker-test
 
 docker-build: ## Build Docker image (use DOCKER_TAG=x.y.z to tag)
 	DOCKER_BUILDKIT=1 docker compose build
 	docker tag $(DOCKER_IMG)-vibefocus:latest $(DOCKER_REGISTRY)/$(DOCKER_IMG):$(DOCKER_TAG)
 	@echo "Built and tagged $(DOCKER_REGISTRY)/$(DOCKER_IMG):$(DOCKER_TAG)"
 
-docker-run: ## Run Docker containers (detached)
+docker-run: ## Start Docker container (reads .env for VIBEFOCUS_PORT and PROJECTS_DIR)
 	docker compose up -d
-	@echo "App running at http://localhost:5173"
+	@echo "App running at http://localhost:$${VIBEFOCUS_PORT:-8000}"
+
+docker-test: docker-build ## Build, start, and verify Docker container
+	docker compose up -d
+	@sleep 3
+	@PORT=$$(docker compose port vibefocus 8000 | cut -d: -f2); \
+	echo "=== Health Check ==="; \
+	curl -sf http://localhost:$$PORT/health && echo ""; \
+	echo "=== Version ==="; \
+	curl -sf http://localhost:$$PORT/version && echo ""; \
+	echo "=== Projects Mount ==="; \
+	docker compose exec vibefocus ls /Users 2>/dev/null | head -3 || echo "(not mounted)"; \
+	echo ""; \
+	echo "Docker test passed. App at http://localhost:$$PORT"
 
 docker-stop: ## Stop and remove Docker containers
 	docker compose down

@@ -11,6 +11,7 @@ services:
       - DATABASE_URL=sqlite:///./data/vibefocus.db
     volumes:
       - ./data:/app/data
-      ## Uncomment and set to your development directory to enable
-      ## git sync, code analysis, and code-aware AI chat:
-      # - /path/to/your/projects:/path/to/your/projects:ro
+      # Mount local repos (read-only) for git sync, code analysis, and AI chat.
+      # Set PROJECTS_DIR to your development directory:
+      #   PROJECTS_DIR=/Users/you/Development docker compose up -d
+      - ${PROJECTS_DIR:-.}:${PROJECTS_DIR:-.}:ro
