@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import AsyncIterator
 
 import anthropic
+from openai import AsyncOpenAI
 from sqlalchemy.orm import Session
 
 from database import settings
@@ -400,12 +401,14 @@ async def stream_chat(
     Stream a chat response using the Messages API.
     Supports tool use for code exploration when focus project has a local_path.
     """
-    client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
     system = build_system_prompt(db, focus_project_id)
+    provider = settings.resolved_ai_provider
+    if provider == "none":
+        raise RuntimeError("No AI provider configured. Set ANTHROPIC_API_KEY or OPENAI_API_KEY in backend/.env.")
 
     # Determine if code exploration tool is available
     project = db.get(Project, focus_project_id) if focus_project_id else None
-    tools = [CODE_QUERY_TOOL] if (project and project.local_path) else []
+    tools = [CODE_QUERY_TOOL] if (provider == "anthropic" and project and project.local_path) else []
 
     # Prepend conversation summary if session has one
     scope_type = "project" if focus_project_id else "portfolio"
@@ -427,12 +430,42 @@ async def stream_chat(
     # Text chunks are plain strings
     # The router distinguishes between them for SSE formatting
 
+    if provider == "openai":
+        if not settings.has_openai:
+            raise RuntimeError("AI_PROVIDER=openai but OPENAI_API_KEY is not configured.")
+        client = AsyncOpenAI(api_key=settings.effective_openai_api_key)
+        yield {"type": "status", "message": "Thinking..."}
+        first_text = True
+        async with client.responses.stream(
+            model=settings.openai_model,
+            instructions=system,
+            input=[
+                {
+                    "role": m.get("role", "user"),
+                    "content": m.get("content", "") if isinstance(m.get("content", ""), str) else str(m.get("content", "")),
+                }
+                for m in api_messages
+            ],
+            max_output_tokens=2048,
+        ) as stream:
+            async for event in stream:
+                if event.type == "response.output_text.delta":
+                    if first_text:
+                        yield {"type": "status", "message": ""}
+                        first_text = False
+                    yield event.delta
+            await stream.get_final_response()
+        return
+
     # Multi-turn loop to handle tool use
+    if not settings.has_anthropic:
+        raise RuntimeError("AI_PROVIDER=anthropic but ANTHROPIC_API_KEY is not configured.")
+    client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
     while True:
         yield {"type": "status", "message": "Thinking..."}
 
         kwargs: dict = dict(
-            model="claude-sonnet-4-20250514",
+            model=settings.anthropic_model,
             max_tokens=2048,
             system=system,
             messages=api_messages,
@@ -517,13 +550,24 @@ async def maybe_compact_session(db: Session, session: ChatSession) -> None:
 
 {old_text}"""
 
-    client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
-    response = await client.messages.create(
-        model="claude-sonnet-4-20250514",
-        max_tokens=600,
-        messages=[{"role": "user", "content": summarization_prompt}],
-    )
-
-    session.summary = response.content[0].text
+    provider = settings.resolved_ai_provider
+    if provider == "openai":
+        client = AsyncOpenAI(api_key=settings.effective_openai_api_key)
+        response = await client.responses.create(
+            model=settings.openai_model,
+            input=summarization_prompt,
+            max_output_tokens=600,
+        )
+        session.summary = response.output_text
+    elif provider == "anthropic":
+        client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
+        response = await client.messages.create(
+            model=settings.anthropic_model,
+            max_tokens=600,
+            messages=[{"role": "user", "content": summarization_prompt}],
+        )
+        session.summary = response.content[0].text
+    else:
+        return
     session.messages = recent_messages
     db.commit()

@@ -42,8 +42,8 @@ Agent SDK reads your actual codebase — detects tech stacks, surfaces TODOs, es
 | Layer | Tech |
 |-------|------|
 | Backend | Python 3.11+, FastAPI, SQLAlchemy, SQLite |
-| Agent | Anthropic Agent SDK (local codebase analysis) |
-| AI Chat | Anthropic Messages API (streaming SSE) |
+| Agent | Anthropic Agent SDK or OpenAI Agents SDK (local codebase analysis) |
+| AI Chat | Anthropic Messages API or OpenAI Responses API (streaming SSE) |
 | Frontend | Vite + React 18 + TypeScript |
 | State | Zustand + TanStack Query |
 | MCP | Python MCP server (stdio transport, 32 tools) |
@@ -58,7 +58,8 @@ Agent SDK reads your actual codebase — detects tech stacks, surfaces TODOs, es
 docker run -d -p 8000:8000 \
   -v ./data:/app/data \
   -v /path/to/your/projects:/path/to/your/projects:ro \
-  -e ANTHROPIC_API_KEY=your_key_here \
+  -e OPENAI_API_KEY=your_key_here \
+  -e AI_PROVIDER=openai \
   ericblue/vibefocus:latest
 ```
 
@@ -70,11 +71,11 @@ Open http://localhost:8000. The volume mount to your projects directory enables 
 git clone https://github.com/ericblue/vibefocus.git
 cd vibefocus
 make install                    # Install frontend + backend + MCP server
-cp backend/.env.example backend/.env  # Add your ANTHROPIC_API_KEY
+cp backend/.env.example backend/.env  # Add ANTHROPIC_API_KEY or OPENAI_API_KEY
 make run                        # Start app (backend :8000, frontend :5173)
 ```
 
-Requires Python 3.12+, Node 18+, and an [Anthropic API key](https://platform.anthropic.com).
+Requires Python 3.12+, Node 18+, and either an Anthropic API key or an OpenAI API key.
 
 See **[INSTALL.md](INSTALL.md)** for detailed setup including custom ports, Docker Compose, and MCP server configuration.
 

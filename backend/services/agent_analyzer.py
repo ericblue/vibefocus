@@ -14,6 +14,8 @@ from pathlib import Path
 from datetime import datetime
 
 from claude_agent_sdk import query, ClaudeAgentOptions, AssistantMessage
+from agents import Agent, Runner, RunConfig, function_tool, set_default_openai_key
+from database import settings
 from schemas import CodeAnalysis, DetectedDoc
 
 
@@ -90,6 +92,11 @@ async def analyze_local_project(local_path: str) -> CodeAnalysis:
         raise FileNotFoundError(f"Local path does not exist: {local_path}")
     if not path.is_dir():
         raise ValueError(f"Local path is not a directory: {local_path}")
+
+    if settings.resolved_ai_provider == "openai":
+        return await _analyze_with_openai_agent(path)
+    if not settings.has_anthropic:
+        raise ValueError("No Anthropic API key configured for code analysis. Set ANTHROPIC_API_KEY or use AI_PROVIDER=openai with OPENAI_API_KEY.")
 
     prompt = ANALYSIS_PROMPT.format(path=str(path))
 
@@ -169,6 +176,173 @@ async def analyze_local_project(local_path: str) -> CodeAnalysis:
     ]
 
     # Parse completion estimate
+    ai_completion_pct = data.get("completion_pct")
+    if isinstance(ai_completion_pct, (int, float)):
+        ai_completion_pct = max(0, min(100, int(ai_completion_pct)))
+    else:
+        ai_completion_pct = None
+
+    return CodeAnalysis(
+        code_summary="\n\n".join(p for p in summary_parts if p),
+        code_tech_stack=data.get("tech_stack", []),
+        code_todos=todos,
+        detected_docs=detected_docs or None,
+        ai_completion_pct=ai_completion_pct,
+        ai_completion_reason=data.get("completion_reason"),
+        last_analyzed_at=datetime.utcnow(),
+    )
+
+
+def _safe_project_path(root: Path, relative_path: str) -> Path:
+    candidate = (root / relative_path).resolve()
+    if root not in candidate.parents and candidate != root:
+        raise ValueError("Path is outside the project")
+    return candidate
+
+
+async def _analyze_with_openai_agent(path: Path) -> CodeAnalysis:
+    """Run OpenAI Agents SDK analysis against a local codebase using read-only tools."""
+    if not settings.has_openai:
+        raise ValueError("AI_PROVIDER=openai but OPENAI_API_KEY is not configured.")
+
+    root = path.resolve()
+    set_default_openai_key(settings.effective_openai_api_key)
+
+    ignored_dirs = {
+        ".git", "node_modules", "venv", ".venv", "dist", "build", ".next",
+        "__pycache__", ".pytest_cache", ".mypy_cache", ".turbo",
+    }
+
+    @function_tool
+    def list_files(glob_pattern: str = "**/*", max_results: int = 120) -> str:
+        """List project files matching a glob pattern, excluding common dependency/build directories."""
+        results: list[str] = []
+        for candidate in root.glob(glob_pattern):
+            if any(part in ignored_dirs for part in candidate.relative_to(root).parts):
+                continue
+            if candidate.is_file():
+                results.append(str(candidate.relative_to(root)))
+            if len(results) >= max_results:
+                break
+        return "\n".join(sorted(results)) or "(no files)"
+
+    @function_tool
+    def read_file(relative_path: str, max_chars: int = 6000) -> str:
+        """Read a UTF-8 text file from the project by relative path."""
+        file_path = _safe_project_path(root, relative_path)
+        if not file_path.is_file():
+            return f"Not a file: {relative_path}"
+        try:
+            return file_path.read_text(errors="replace")[:max_chars]
+        except OSError as e:
+            return f"Could not read {relative_path}: {e}"
+
+    @function_tool
+    def grep_source(pattern: str, max_results: int = 40) -> str:
+        """Search text files for a case-sensitive pattern and return path:line matches."""
+        matches: list[str] = []
+        for candidate in root.rglob("*"):
+            if any(part in ignored_dirs for part in candidate.relative_to(root).parts):
+                continue
+            if not candidate.is_file():
+                continue
+            try:
+                for i, line in enumerate(candidate.read_text(errors="replace").splitlines(), start=1):
+                    if pattern in line:
+                        matches.append(f"{candidate.relative_to(root)}:{i}: {line.strip()[:240]}")
+                        if len(matches) >= max_results:
+                            return "\n".join(matches)
+            except OSError:
+                continue
+        return "\n".join(matches) or "(no matches)"
+
+    @function_tool
+    def git_summary() -> str:
+        """Return recent git activity and working tree status for the project."""
+        import subprocess
+
+        commands = [
+            ["git", "log", "--oneline", "-10"],
+            ["git", "status", "--short"],
+        ]
+        blocks = []
+        for cmd in commands:
+            try:
+                result = subprocess.run(cmd, cwd=root, capture_output=True, text=True, timeout=8)
+                output = result.stdout.strip() or "(no output)"
+                blocks.append(f"$ {' '.join(cmd)}\n{output}")
+            except (subprocess.TimeoutExpired, FileNotFoundError) as e:
+                blocks.append(f"$ {' '.join(cmd)}\nfailed: {e}")
+        return "\n\n".join(blocks)
+
+    agent = Agent(
+        name="VibeFocus Project Analyzer",
+        model=settings.openai_analyzer_model or settings.openai_model,
+        instructions=(
+            "You analyze local software projects for a portfolio management tool. "
+            "Use the available read-only tools to inspect manifests, README/docs, recent git activity, "
+            "TODO/FIXME/HACK comments, and project structure. Return ONLY a valid JSON object matching "
+            "the schema requested by the user. Do not include markdown."
+        ),
+        tools=[list_files, read_file, grep_source, git_summary],
+    )
+
+    result = await Runner.run(
+        agent,
+        ANALYSIS_PROMPT.format(path=str(root)),
+        max_turns=12,
+        run_config=RunConfig(tracing_disabled=True),
+    )
+    result_text = str(result.final_output or "")
+    return _code_analysis_from_agent_json(result_text)
+
+
+def _code_analysis_from_agent_json(result_text: str) -> CodeAnalysis:
+    try:
+        clean = result_text.strip()
+        if "```" in clean:
+            parts = clean.split("```")
+            for part in parts:
+                candidate = part.strip()
+                if candidate.startswith("json"):
+                    candidate = candidate[4:].strip()
+                if candidate.startswith("{"):
+                    data = json.loads(candidate)
+                    break
+            else:
+                raise json.JSONDecodeError("No valid JSON in fenced blocks", clean, 0)
+        else:
+            first_brace = clean.find("{")
+            last_brace = clean.rfind("}")
+            data = json.loads(clean[first_brace:last_brace + 1] if first_brace != -1 and last_brace > first_brace else clean)
+    except (json.JSONDecodeError, IndexError):
+        return CodeAnalysis(
+            code_summary=result_text[:2000] if result_text else "Analysis failed - could not parse agent output.",
+            last_analyzed_at=datetime.utcnow(),
+        )
+
+    todos = [
+        {"file": t.get("file", ""), "line": t.get("line", 0), "text": t.get("text", "")}
+        for t in data.get("todos", [])
+    ]
+    summary_parts = [data.get("summary", "")]
+    if data.get("recent_activity"):
+        summary_parts.append(f"Recent activity: {data['recent_activity']}")
+    if data.get("readme_excerpt"):
+        summary_parts.append(f"README: {data['readme_excerpt']}")
+    if data.get("notes_for_owner"):
+        summary_parts.append(f"Note: {data['notes_for_owner']}")
+
+    detected_docs = [
+        DetectedDoc(
+            name=d.get("name", "Untitled"),
+            file_path=d.get("file_path", ""),
+            summary=d.get("summary"),
+        )
+        for d in data.get("documents", [])
+        if d.get("file_path")
+    ]
+
     ai_completion_pct = data.get("completion_pct")
     if isinstance(ai_completion_pct, (int, float)):
         ai_completion_pct = max(0, min(100, int(ai_completion_pct)))

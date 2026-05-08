@@ -53,11 +53,11 @@ Entry point: `backend/main.py` — mounts three routers under `/api/`:
 **Database**: SQLite (`vibefocus.db`) via SQLAlchemy ORM. Models in `backend/models.py`, Pydantic schemas in `backend/schemas.py`. All entity IDs are 8-char truncated UUIDs.
 
 **Services layer** (`backend/services/`):
-- `chat_service.py` — builds a system prompt containing the full portfolio (all projects, git stats, code analysis, insights) then streams via Anthropic Messages API (claude-sonnet). Every chat message gets complete cross-project context.
-- `agent_analyzer.py` — on-demand codebase analysis using Anthropic Agent SDK with tool use (Read, Bash, Glob, LS). Called via `POST /api/projects/{id}/analyze`. Returns structured JSON: summary, tech stack, TODOs, health signal (active/cooling/dormant).
+- `chat_service.py` — builds a system prompt containing the full portfolio (all projects, git stats, code analysis, insights) then streams via the configured AI provider. Anthropic and OpenAI are supported. Every chat message gets complete cross-project context.
+- `agent_analyzer.py` — on-demand codebase analysis using Anthropic Agent SDK or OpenAI Agents SDK depending on `AI_PROVIDER`. Called via `POST /api/projects/{id}/analyze`. Returns structured JSON: summary, tech stack, TODOs, health signal (active/cooling/dormant).
 - `git_service.py` — local git stats (last commit, branch, uncommitted) + GitHub public API (stars, issues, last push). Called via `POST /api/projects/{id}/refresh-stats`.
 
-**Settings**: loaded from `backend/.env` (copy `.env.example`). Key: `ANTHROPIC_API_KEY`.
+**Settings**: loaded from `backend/.env` (copy `.env.example`). Keys: `ANTHROPIC_API_KEY` and/or `OPENAI_API_KEY`; `AI_PROVIDER=auto|anthropic|openai`.
 
 ### Frontend (React/TypeScript/Vite)
 

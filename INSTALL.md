@@ -4,7 +4,7 @@
 
 - Python 3.12+ (arm64 recommended for macOS Apple Silicon)
 - Node.js 18+
-- An Anthropic API key
+- An Anthropic API key or OpenAI API key
 
 ## Quick Start
 
@@ -18,7 +18,7 @@ make install
 
 # Copy and configure the backend environment
 cp backend/.env.example backend/.env
-# Edit backend/.env and set your ANTHROPIC_API_KEY
+# Edit backend/.env and set ANTHROPIC_API_KEY or OPENAI_API_KEY
 
 # Start the app
 make run
@@ -123,7 +123,8 @@ Docker is the easiest way to run VibeFocus without installing Python or Node.js 
 docker run -d \
   -p 8000:8000 \
   -v ./data:/app/data \
-  -e ANTHROPIC_API_KEY=your_key_here \
+  -e OPENAI_API_KEY=your_key_here \
+  -e AI_PROVIDER=openai \
   ericblue/vibefocus:latest
 ```
 
@@ -138,7 +139,8 @@ docker run -d \
   -p 8000:8000 \
   -v ./data:/app/data \
   -v /Users/you/Development:/Users/you/Development:ro \
-  -e ANTHROPIC_API_KEY=your_key_here \
+  -e OPENAI_API_KEY=your_key_here \
+  -e AI_PROVIDER=openai \
   ericblue/vibefocus:latest
 ```
 
@@ -161,7 +163,7 @@ git clone <repo-url> vibefocus
 cd vibefocus
 
 cp backend/.env.example backend/.env
-# Edit backend/.env and set your ANTHROPIC_API_KEY
+# Edit backend/.env and set ANTHROPIC_API_KEY or OPENAI_API_KEY
 
 make docker-build    # Build image (first time only)
 make docker-run      # Start container (detached)
