@@ -8,7 +8,8 @@ BE_VENV     := $(BE_DIR)/venv
 MCP_VENV    := $(MCP_DIR)/venv
 BE_PORT     ?= 8000
 FE_PORT     ?= 5173
-PYTHON      ?= /opt/homebrew/bin/python3.12
+PYTHON      ?= python3
+PROJECTS_DIR ?= $(HOME)/conductor/repos
 
 # ── Version (single source of truth: VERSION file) ──────────────────────────
 CURRENT_VERSION := $(shell cat VERSION 2>/dev/null || echo "0.0.0")
@@ -20,7 +21,7 @@ DOCKER_TAG      ?= $(CURRENT_VERSION)
 
 # ── Install / Setup ──────────────────────────────────────────────────────────
 
-.PHONY: install install-fe install-be install-mcp
+.PHONY: install install-fe install-be install-mcp import-projects
 
 install: install-fe install-be install-mcp ## Install all dependencies
 
@@ -32,6 +33,9 @@ install-be: ## Create venv and install backend dependencies
 
 install-mcp: ## Create venv and install MCP server dependencies
 	cd $(MCP_DIR) && $(PYTHON) -m venv venv && . venv/bin/activate && pip install -r requirements.txt
+
+import-projects: ## Import local git repos into VibeFocus (PROJECTS_DIR=/path/to/repos)
+	cd $(BE_DIR) && . venv/bin/activate && python import_local_projects.py --root "$(PROJECTS_DIR)"
 
 # ── Frontend ─────────────────────────────────────────────────────────────────
 
@@ -56,7 +60,7 @@ be: ## Start backend dev server (background)
 	@echo "Backend running on http://localhost:$(BE_PORT)"
 
 be-stop: ## Stop backend dev server
-	@-pkill -f "uvicorn" 2>/dev/null && echo "Backend stopped" || echo "Backend not running"
+	@-pkill -f "python main.py|uvicorn" 2>/dev/null && echo "Backend stopped" || echo "Backend not running"
 
 # ── Run / Stop All ───────────────────────────────────────────────────────────
 
