@@ -1,0 +1,70 @@
+name: PR Quality Gates
+
+on:
+  pull_request:
+    branches: [master]
+
+jobs:
+  pr-metadata:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate PR body contains ExecPlan path or N/A reason
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          BODY="${PR_BODY:-}"
+
+          has_execplan=0
+          has_na_reason=0
+
+          if printf '%s' "$BODY" | grep -Eq '\.agent/execplans/[0-9]{4}-[0-9]{2}-[0-9]{2}-[a-z0-9._-]+\.md'; then
+            has_execplan=1
+          fi
+
+          if printf '%s' "$BODY" | grep -Eq 'N/A reason:[[:space:]]*[[:alnum:]]'; then
+            has_na_reason=1
+          fi
+
+          if [ "$has_execplan" -eq 0 ] && [ "$has_na_reason" -eq 0 ]; then
+            echo "PR body must include an ExecPlan path or a populated N/A reason."
+            exit 1
+          fi
+
+          if ! printf '%s' "$BODY" | grep -q "Validation Evidence"; then
+            echo "PR body must include the Validation Evidence section."
+            exit 1
+          fi
+
+  quality-checks:
+    needs: pr-metadata
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: pip install -r requirements.txt
+
+      - name: Build frontend
+        working-directory: frontend
+        run: npm run build
+
+      - name: Compile backend
+        working-directory: backend
+        run: python -m py_compile main.py import_local_projects.py services/*.py routers/*.py

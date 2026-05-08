@@ -1,0 +1,5 @@
+#!/bin/sh
+# Clear Vite build/cache artifacts after merges so local dev reflects fresh files.
+
+rm -rf frontend/dist frontend/.vite frontend/node_modules/.vite 2>/dev/null
+echo "Cleared VibeFocus frontend build/cache artifacts"

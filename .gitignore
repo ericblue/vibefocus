@@ -50,3 +50,6 @@ visual-explainer-*.png
 vibefocus-prototype.html
 vibefocus.zip
 .mcp.json
+
+# Local CLI secrets
+.env.cli

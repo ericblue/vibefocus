@@ -1,0 +1,74 @@
+name: Orphan Commit Check
+
+on:
+  pull_request:
+    branches: [master]
+    types: [closed]
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  check-orphans:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check for orphaned commits on merged branch
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          HEAD_BRANCH: ${{ github.event.pull_request.head.ref }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          # Fetch the branch ref if it still exists (may already be auto-deleted)
+          git fetch origin "$HEAD_BRANCH" 2>/dev/null || {
+            echo "Branch already deleted — no orphans possible."
+            exit 0
+          }
+
+          # Find commits on the branch that are NOT reachable from master
+          ORPHANS=$(git log origin/master..origin/"$HEAD_BRANCH" --oneline 2>/dev/null || true)
+
+          if [ -z "$ORPHANS" ]; then
+            echo "No orphaned commits. Branch is clean."
+            exit 0
+          fi
+
+          ORPHAN_COUNT=$(echo "$ORPHANS" | wc -l | tr -d ' ')
+          echo "::warning::Found $ORPHAN_COUNT orphaned commit(s) on $HEAD_BRANCH"
+          echo "$ORPHANS"
+
+          # Open an issue
+          BODY=$(cat <<EOF2
+          ## Orphaned commits detected
+
+          PR #$PR_NUMBER merged branch \`$HEAD_BRANCH\`, but **$ORPHAN_COUNT commit(s)** on the branch are not reachable from master.
+
+          These commits were likely pushed after the PR was squash-merged, or contain unrelated work that was not included in the merge.
+
+          ### Orphaned commits
+
+          \`\`\`
+          $ORPHANS
+          \`\`\`
+
+          ### Action required
+
+          1. Review each orphaned commit to determine if the work is needed.
+          2. If needed, cherry-pick onto a new branch and open a new PR.
+          3. If not needed, no action required — the branch will be cleaned up.
+
+          ---
+          *Detected by orphan-check workflow on PR #$PR_NUMBER*
+          EOF2
+          )
+
+          gh issue create \
+            --title "Orphaned commits on $HEAD_BRANCH (PR #$PR_NUMBER)" \
+            --body "$BODY" \
+            --label "orphaned-work"
