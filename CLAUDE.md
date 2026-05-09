@@ -18,7 +18,7 @@ make install-mcp      # MCP server only: creates venv, pip install mcp httpx
 
 ### Development
 ```bash
-make run              # Start both backend (port 8000) and frontend (port 5173)
+make run              # Start both backend (port 8001) and frontend (port 5173)
 make stop             # Stop both servers
 make be               # Backend only (requires venv activated)
 make fe               # Frontend only

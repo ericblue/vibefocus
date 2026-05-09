@@ -6,11 +6,11 @@ BE_DIR      := backend
 MCP_DIR     := mcp-server
 BE_VENV     := $(BE_DIR)/venv
 MCP_VENV    := $(MCP_DIR)/venv
-BE_PORT     ?= 8000
+BE_PORT     ?= 8001
 FE_PORT     ?= 5173
 PYTHON      ?= python3
 PROJECTS_DIR ?= $(HOME)/conductor/repos
-VIBEFOCUS_PORT ?= $(BE_PORT)
+VIBEFOCUS_PORT ?= 8000
 VIBEFOCUS_DATA ?= $(HOME)/.vibefocus/data
 DOCKER_COMPOSE ?= $(shell if docker compose version >/dev/null 2>&1; then echo "docker compose"; elif command -v docker-compose >/dev/null 2>&1; then echo "docker-compose"; else echo "docker compose"; fi)
 

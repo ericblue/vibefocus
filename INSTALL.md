@@ -220,7 +220,7 @@ The MCP server runs outside Docker (it needs access to your local git repos). Wi
 |---|---|---|
 | **Setup** | Requires Python 3.12+, Node.js 18+ | Just Docker |
 | **Hot reload** | Yes (Vite + uvicorn) | Requires rebuild/restart |
-| **Ports** | 8000 (API) + 5173 (UI) | 8000 (single port) |
+| **Ports** | 8001 (API) + 5173 (UI) | 8000 (single port) |
 | **Database** | `backend/vibefocus.db` | `~/.vibefocus/data/vibefocus.db` |
 | **Code analysis** | Works (Agent SDK accesses local repos) | Limited (repos not mounted) |
 | **MCP server** | Works fully | Backend only, MCP runs on host |
