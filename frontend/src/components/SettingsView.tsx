@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import { useProjects, showToast } from '../hooks/useProjects'
 import { api } from '../api/client'
 
@@ -9,8 +9,138 @@ export function SettingsView() {
     <div style={{ padding: 24, paddingBottom: 100, maxWidth: 800, margin: '0 auto' }}>
       <h1 style={{ fontSize: 22, fontWeight: 700, marginBottom: 24 }}>Settings</h1>
 
+      <ScanSection />
       <ExportSection />
       <ImportSection />
+    </div>
+  )
+}
+
+
+// ── Scan Local Repos ─────────────────────────────────────────────────────────
+
+function ScanSection() {
+  const [configuredDir, setConfiguredDir] = useState<string | null>(null)
+  const [customRoot, setCustomRoot] = useState('')
+  const [recursive, setRecursive] = useState(false)
+  const [scanning, setScanning] = useState(false)
+  const [result, setResult] = useState<any>(null)
+
+  useEffect(() => {
+    fetch(`${BASE}/data/scan-config`)
+      .then(r => r.json())
+      .then(d => {
+        setConfiguredDir(d.projects_dir ?? null)
+        if (d.projects_dir) setCustomRoot(d.projects_dir_raw ?? d.projects_dir)
+      })
+      .catch(() => {})
+  }, [])
+
+  async function handleScan() {
+    setScanning(true)
+    setResult(null)
+    try {
+      const params = new URLSearchParams({ recursive: String(recursive) })
+      if (customRoot.trim()) params.set('root', customRoot.trim())
+      const res = await fetch(`${BASE}/data/scan?${params}`, { method: 'POST' })
+      const data = await res.json()
+      if (!res.ok) {
+        showToast(data.detail || 'Scan failed')
+      } else {
+        setResult(data)
+        showToast(`Scan complete — ${data.created} new, ${data.updated} updated`)
+      }
+    } catch (e: any) {
+      showToast(`Scan failed: ${e.message}`)
+    } finally {
+      setScanning(false)
+    }
+  }
+
+  return (
+    <div style={{
+      background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12,
+      padding: 24, marginBottom: 20,
+    }}>
+      <h2 style={{ fontSize: 15, fontWeight: 700, marginBottom: 4 }}>Scan Local Repos</h2>
+      <p style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 16 }}>
+        Re-scan your local projects directory to pick up new repositories.
+        Set <code style={{ background: 'var(--bg)', padding: '1px 4px', borderRadius: 3 }}>PROJECTS_DIR</code> in{' '}
+        <code style={{ background: 'var(--bg)', padding: '1px 4px', borderRadius: 3 }}>backend/.env</code> to configure the default path.
+      </p>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div>
+          <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: 4 }}>
+            Directory
+          </label>
+          <input
+            type="text"
+            value={customRoot}
+            onChange={e => setCustomRoot(e.target.value)}
+            placeholder={configuredDir ?? 'e.g. ~/conductor/repos'}
+            style={{
+              width: '100%', padding: '8px 10px', borderRadius: 6, fontSize: 13,
+              border: '1px solid var(--border)', background: 'var(--bg)',
+              color: 'var(--text)', fontFamily: 'var(--font)', boxSizing: 'border-box',
+            }}
+          />
+          {configuredDir && (
+            <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>
+              Configured: {configuredDir}
+            </div>
+          )}
+        </div>
+
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, cursor: 'pointer' }}>
+          <input
+            type="checkbox"
+            checked={recursive}
+            onChange={e => setRecursive(e.target.checked)}
+          />
+          Recursive (search subdirectories for nested repos)
+        </label>
+
+        <button
+          className="btn btn-primary"
+          onClick={handleScan}
+          disabled={scanning}
+          style={{ alignSelf: 'flex-start' }}
+        >
+          {scanning ? 'Scanning...' : 'Re-scan'}
+        </button>
+
+        {result && (
+          <div style={{
+            padding: 14, background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.2)',
+            borderRadius: 8, fontSize: 12,
+          }}>
+            <div style={{ fontWeight: 600, color: '#10b981', marginBottom: 6 }}>
+              Scan complete — {result.total} repos found in {result.root}
+            </div>
+            <div style={{ marginBottom: 8 }}>
+              <strong>{result.created}</strong> new &nbsp;·&nbsp;
+              <strong>{result.updated}</strong> updated &nbsp;·&nbsp;
+              <strong>{result.commits_added}</strong> commits synced
+            </div>
+            {result.projects.length > 0 && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                {result.projects.map((p: any, i: number) => (
+                  <div key={i} style={{ fontSize: 11, color: 'var(--muted)' }}>
+                    <span style={{
+                      display: 'inline-block', width: 52,
+                      color: p.action === 'created' ? '#10b981' : 'var(--muted)',
+                      fontWeight: p.action === 'created' ? 600 : 400,
+                    }}>{p.action}</span>
+                    {p.name}
+                    {p.commits_added > 0 && <span style={{ color: 'var(--muted)' }}> ({p.commits_added} commits)</span>}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   )
 }
