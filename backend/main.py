@@ -201,9 +201,12 @@ def version():
 # ── Serve frontend static files (Docker single-image mode) ──────────────────
 static_dir = Path(__file__).parent / "static"
 if static_dir.is_dir():
+    @app.get("/")
+    async def serve_root():
+        return FileResponse(static_dir / "index.html")
+
     @app.get("/{full_path:path}")
     async def serve_frontend(full_path: str):
-        """Serve the built frontend. Falls back to index.html for SPA routing."""
         file_path = static_dir / full_path
         if file_path.is_file():
             return FileResponse(file_path)

@@ -18,7 +18,7 @@ make install-mcp      # MCP server only: creates venv, pip install mcp httpx
 
 ### Development
 ```bash
-make run              # Start both backend (port 8000) and frontend (port 5173)
+make run              # Start both backend (port 8001) and frontend (port 5173)
 make stop             # Stop both servers
 make be               # Backend only (requires venv activated)
 make fe               # Frontend only
@@ -38,6 +38,9 @@ make docker-status    # Show container status and health
 make docker-restart   # Restart detached container
 make docker-stop      # Stop containers
 ```
+
+Docker stores the SQLite database at `~/.vibefocus/data/` (host path, independent of the repo).
+Override with `VIBEFOCUS_DATA=/your/path`. To redeploy after updates: `git pull && make docker-run`.
 
 There are no test suites, linters, or formatters configured in this project.
 

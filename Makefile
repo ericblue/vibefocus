@@ -6,11 +6,12 @@ BE_DIR      := backend
 MCP_DIR     := mcp-server
 BE_VENV     := $(BE_DIR)/venv
 MCP_VENV    := $(MCP_DIR)/venv
-BE_PORT     ?= 8000
+BE_PORT     ?= 8001
 FE_PORT     ?= 5173
 PYTHON      ?= python3
 PROJECTS_DIR ?= $(HOME)/conductor/repos
-VIBEFOCUS_PORT ?= $(BE_PORT)
+VIBEFOCUS_PORT ?= 8000
+VIBEFOCUS_DATA ?= $(HOME)/.vibefocus/data
 DOCKER_COMPOSE ?= $(shell if docker compose version >/dev/null 2>&1; then echo "docker compose"; elif command -v docker-compose >/dev/null 2>&1; then echo "docker-compose"; else echo "docker compose"; fi)
 
 # ── Version (single source of truth: VERSION file) ──────────────────────────
@@ -25,6 +26,7 @@ export DOCKER_REGISTRY
 export DOCKER_TAG
 export PROJECTS_DIR
 export VIBEFOCUS_PORT
+export VIBEFOCUS_DATA
 
 # ── Install / Setup ──────────────────────────────────────────────────────────
 
@@ -102,8 +104,10 @@ docker-build: ## Build Docker image (use DOCKER_TAG=x.y.z to tag)
 	@echo "Built and tagged $(DOCKER_REGISTRY)/$(DOCKER_IMG):$(DOCKER_TAG)"
 
 docker-run: docker-env-check ## Start always-on Docker container (detached; survives terminal/workspace archive)
+	@mkdir -p "$(VIBEFOCUS_DATA)"
 	$(DOCKER_COMPOSE) up -d --build
 	@echo "App running at http://localhost:$(VIBEFOCUS_PORT)"
+	@echo "Data dir: $(VIBEFOCUS_DATA)"
 	@echo "Mounted projects from $(PROJECTS_DIR)"
 
 docker-test: docker-env-check docker-build ## Build, start, and verify Docker container

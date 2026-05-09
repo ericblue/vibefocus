@@ -16,7 +16,7 @@ services:
       - CORS_ORIGINS=http://localhost:${VIBEFOCUS_PORT:-8000}
       - PROJECTS_DIR=${PROJECTS_DIR:-/Users}
     volumes:
-      - ./data:/app/data
+      - ${VIBEFOCUS_DATA:-$HOME/.vibefocus/data}:/app/data
       # Mount local repos (read-only) for git sync, code analysis, and AI chat.
       # Set PROJECTS_DIR to your development directory:
       #   PROJECTS_DIR=/Users/you/Development docker compose up -d

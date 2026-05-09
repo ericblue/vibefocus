@@ -128,10 +128,15 @@ make docker-run PROJECTS_DIR=/Users/you/Development
 
 Open `http://localhost:8000` — both the UI and API are served from one port.
 
-Use a custom host port if needed:
+The SQLite database is stored at `~/.vibefocus/data/` on your host, completely separate from the repo. This means:
+- Moving, re-cloning, or updating the repo never touches your data.
+- **To redeploy after updates:** `git pull && make docker-run` — Docker rebuilds the image from your local code, the data directory is untouched.
+
+Use a custom host port or data directory if needed:
 
 ```bash
 make docker-run VIBEFOCUS_PORT=9000 PROJECTS_DIR=/Users/you/Development
+make docker-run VIBEFOCUS_DATA=/Volumes/external/vibefocus PROJECTS_DIR=/Users/you/Development
 ```
 
 ### Mounting Local Repos (recommended)
@@ -177,17 +182,11 @@ The app runs at `http://localhost:8000`.
 
 ### Data Persistence
 
-The SQLite database is stored on your host filesystem at `./data/vibefocus.db` via a bind mount. This means:
+The SQLite database lives at `~/.vibefocus/data/vibefocus.db` on your host (configurable via `VIBEFOCUS_DATA`). This is independent of the repo — you can move, delete, or re-clone the repo without losing any data.
 
-- Your data survives container restarts and rebuilds
-- You can back up the database by copying `./data/vibefocus.db`
-- You can inspect or migrate the database directly from your host
-
-If you need to change the database path, update `DATABASE_URL` in `backend/.env`:
-
-```
-DATABASE_URL=sqlite:///./data/vibefocus.db
-```
+- Back up: copy `~/.vibefocus/data/vibefocus.db`
+- Inspect: open it with any SQLite client directly from the host
+- Override: set `VIBEFOCUS_DATA=/your/path` in `backend/.env` or pass it to `make docker-run`
 
 ### Management
 
@@ -221,8 +220,8 @@ The MCP server runs outside Docker (it needs access to your local git repos). Wi
 |---|---|---|
 | **Setup** | Requires Python 3.12+, Node.js 18+ | Just Docker |
 | **Hot reload** | Yes (Vite + uvicorn) | Requires rebuild/restart |
-| **Ports** | 8000 (API) + 5173 (UI) | 8000 (single port) |
-| **Database** | `backend/vibefocus.db` | `./data/vibefocus.db` |
+| **Ports** | 8001 (API) + 5173 (UI) | 8000 (single port) |
+| **Database** | `backend/vibefocus.db` | `~/.vibefocus/data/vibefocus.db` |
 | **Code analysis** | Works (Agent SDK accesses local repos) | Limited (repos not mounted) |
 | **MCP server** | Works fully | Backend only, MCP runs on host |
 | **Best for** | Active development | Always-on local app / deployment |
