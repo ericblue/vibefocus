@@ -33,6 +33,8 @@ RUN groupadd -r vibefocus && useradd -r -g vibefocus -d /app vibefocus \
     && chown -R vibefocus:vibefocus /app
 
 ENV DATABASE_URL=sqlite:///./data/vibefocus.db
+ENV PORT=8000
+ENV RELOAD=false
 
 USER vibefocus
 

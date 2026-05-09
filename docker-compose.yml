@@ -1,17 +1,29 @@
 services:
   vibefocus:
+    image: "${DOCKER_REGISTRY:-ericblue}/vibefocus:${DOCKER_TAG:-local}"
     build:
       context: .
       dockerfile: Dockerfile
+    restart: unless-stopped
     ports:
       - "${VIBEFOCUS_PORT:-8000}:8000"
     env_file:
       - ./backend/.env
     environment:
       - DATABASE_URL=sqlite:///./data/vibefocus.db
+      - PORT=8000
+      - RELOAD=false
+      - CORS_ORIGINS=http://localhost:${VIBEFOCUS_PORT:-8000}
+      - PROJECTS_DIR=${PROJECTS_DIR:-/Users}
     volumes:
       - ./data:/app/data
       # Mount local repos (read-only) for git sync, code analysis, and AI chat.
       # Set PROJECTS_DIR to your development directory:
       #   PROJECTS_DIR=/Users/you/Development docker compose up -d
-      - ${PROJECTS_DIR:-.}:${PROJECTS_DIR:-.}:ro
+      - ${PROJECTS_DIR:-/Users}:${PROJECTS_DIR:-/Users}:ro
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=2).read()\""]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s

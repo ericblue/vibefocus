@@ -33,11 +33,28 @@ make fe-build         # Production frontend build: tsc && vite build
 ### Docker
 ```bash
 make docker-build     # Build images
-make docker-run       # Run containers (detached)
+make docker-run       # Build and run always-on container (detached)
+make docker-status    # Show container status and health
+make docker-restart   # Restart detached container
 make docker-stop      # Stop containers
 ```
 
 There are no test suites, linters, or formatters configured in this project.
+
+## Git & Pull Requests
+
+This repo has two remotes:
+- `origin` — `git@github.com:clyons/vibefocus.git` (the fork — use this for PRs)
+- `upstream` — `git@github.com:ericblue/vibefocus.git` (original repo — no merge rights)
+
+**NEVER open a PR against `ericblue/vibefocus` unless explicitly instructed to do so.**
+
+Always create PRs with:
+```bash
+gh pr create --repo clyons/vibefocus --base master
+```
+
+`gh pr create` without `--repo` will default to the upstream fork parent, which is wrong.
 
 ## Architecture
 
