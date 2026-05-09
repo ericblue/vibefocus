@@ -1,6 +1,6 @@
 """
 Data import/export endpoints for VibeFocus.
-Supports JSON (full/per-project), CSV, SQLite backup, and JSON import.
+Supports JSON (full/per-project), CSV, SQLite backup, JSON import, and local repo scanning.
 """
 
 import csv
@@ -440,3 +440,36 @@ async def import_preview(file: UploadFile = File(...)):
         },
         "projects": [{"name": p["name"], "completion_pct": p.get("completion_pct", 0)} for p in projects],
     }
+
+
+# ── Local repo scan ───────────────────────────────────────────────────────────
+
+@router.get("/scan-config")
+def scan_config():
+    """Return the configured PROJECTS_DIR for the UI to display."""
+    raw = settings.projects_dir
+    resolved = str(Path(raw).expanduser().resolve()) if raw else None
+    return {"projects_dir": resolved, "projects_dir_raw": raw}
+
+
+@router.post("/scan")
+def scan_local_projects(
+    root: str | None = Query(default=None, description="Directory to scan. Falls back to PROJECTS_DIR setting."),
+    recursive: bool = Query(default=False),
+    db: Session = Depends(get_db),
+):
+    """Scan a local directory for git repositories and import/update them."""
+    from import_local_projects import scan_repos
+
+    scan_root = root or settings.projects_dir
+    if not scan_root:
+        raise HTTPException(
+            400,
+            "No scan directory configured. Set PROJECTS_DIR in backend/.env or pass ?root=... in the request.",
+        )
+
+    root_path = Path(scan_root).expanduser().resolve()
+    if not root_path.is_dir():
+        raise HTTPException(400, f"Directory not found: {scan_root}")
+
+    return scan_repos(db, root_path, recursive=recursive)

@@ -306,6 +306,32 @@ def import_repo(db, repo: Path, buckets: dict[str, str], states: dict[str, str],
     return ("created" if created else "updated", project.name, commits_added)
 
 
+def scan_repos(db, root: Path, recursive: bool = False, fetch_all: bool = False) -> dict:
+    """Scan a directory for git repos and import/update them. Returns a summary dict."""
+    buckets, states = ensure_defaults(db)
+    repos = list(find_git_repos(root, recursive=recursive))
+
+    results = []
+    total_created = total_updated = total_commits = 0
+    for repo in repos:
+        action, name, commits_added = import_repo(db, repo, buckets, states, fetch_all=fetch_all)
+        results.append({"action": action, "name": name, "commits_added": commits_added})
+        if action == "created":
+            total_created += 1
+        else:
+            total_updated += 1
+        total_commits += commits_added
+
+    return {
+        "root": str(root),
+        "total": len(repos),
+        "created": total_created,
+        "updated": total_updated,
+        "commits_added": total_commits,
+        "projects": results,
+    }
+
+
 def main():
     parser = argparse.ArgumentParser(description="Import local git repositories into VibeFocus.")
     parser.add_argument("--root", required=True, help="Directory containing local git repositories.")
@@ -318,21 +344,15 @@ def main():
         raise SystemExit(f"Root directory does not exist: {root}")
 
     with SessionLocal() as db:
-        buckets, states = ensure_defaults(db)
-        repos = list(find_git_repos(root, recursive=args.recursive))
-        if not repos:
-            raise SystemExit(f"No git repositories found under {root}")
+        result = scan_repos(db, root, recursive=args.recursive, fetch_all=args.fetch_all)
 
-        created = updated = commits = 0
-        for repo in repos:
-            action, name, commits_added = import_repo(db, repo, buckets, states, fetch_all=args.fetch_all)
-            created += action == "created"
-            updated += action == "updated"
-            commits += commits_added
-            print(f"{action:7} {name} ({commits_added} commits)")
+    if result["total"] == 0:
+        raise SystemExit(f"No git repositories found under {root}")
 
-        print("")
-        print(f"Imported {len(repos)} repos: {created} created, {updated} updated, {commits} commits added.")
+    for p in result["projects"]:
+        print(f"{p['action']:7} {p['name']} ({p['commits_added']} commits)")
+    print("")
+    print(f"Imported {result['total']} repos: {result['created']} created, {result['updated']} updated, {result['commits_added']} commits added.")
 
 
 if __name__ == "__main__":
