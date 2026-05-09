@@ -14,6 +14,7 @@ class Settings(BaseSettings):
     database_url: str = "sqlite:///./vibefocus.db"
     cors_origins: str = "http://localhost:5173"
     port: int = 8000
+    reload: bool = True
     projects_dir: str | None = None
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")

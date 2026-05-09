@@ -115,20 +115,24 @@ make mcp-inspect
 
 ## Docker
 
-Docker is the easiest way to run VibeFocus without installing Python or Node.js locally. Everything runs in a single container.
+Docker is the easiest way to keep VibeFocus always on. Everything runs in a single detached container with `restart: unless-stopped`, so it survives terminal exits, workspace archiving, Docker restarts, and host reboots unless you explicitly stop it.
 
-### Quick Start
+### Always-On Quick Start
 
 ```bash
-docker run -d \
-  -p 8000:8000 \
-  -v ./data:/app/data \
-  -e OPENAI_API_KEY=your_key_here \
-  -e AI_PROVIDER=openai \
-  ericblue/vibefocus:latest
+cp backend/.env.example backend/.env
+# Edit backend/.env and set ANTHROPIC_API_KEY or OPENAI_API_KEY
+
+make docker-run PROJECTS_DIR=/Users/you/Development
 ```
 
 Open `http://localhost:8000` — both the UI and API are served from one port.
+
+Use a custom host port if needed:
+
+```bash
+make docker-run VIBEFOCUS_PORT=9000 PROJECTS_DIR=/Users/you/Development
+```
 
 ### Mounting Local Repos (recommended)
 
@@ -136,22 +140,23 @@ To enable git sync, code analysis, and code-aware AI chat, mount your developmen
 
 ```bash
 docker run -d \
+  --restart unless-stopped \
   -p 8000:8000 \
   -v ./data:/app/data \
   -v /Users/you/Development:/Users/you/Development:ro \
   -e OPENAI_API_KEY=your_key_here \
   -e AI_PROVIDER=openai \
+  -e PROJECTS_DIR=/Users/you/Development \
+  -e RELOAD=false \
   ericblue/vibefocus:latest
 ```
 
 Replace `/Users/you/Development` with the parent directory where your git repos live. The path inside the container must match the host path so that `local_path` values on your projects resolve correctly. The `:ro` flag makes it read-only.
 
-If using `docker-compose.yml`, uncomment the volume mount line and set your path:
+If using `docker-compose.yml` directly, set `PROJECTS_DIR` before starting the container:
 
-```yaml
-volumes:
-  - ./data:/app/data
-  - /Users/you/Development:/Users/you/Development:ro
+```bash
+PROJECTS_DIR=/Users/you/Development docker compose up -d --build
 ```
 
 Without this mount, VibeFocus still works but analytics (heatmaps, velocity, streaks) will be empty and code analysis won't be available.
@@ -165,8 +170,7 @@ cd vibefocus
 cp backend/.env.example backend/.env
 # Edit backend/.env and set ANTHROPIC_API_KEY or OPENAI_API_KEY
 
-make docker-build    # Build image (first time only)
-make docker-run      # Start container (detached)
+make docker-run      # Build and start container (detached)
 ```
 
 The app runs at `http://localhost:8000`.
@@ -188,6 +192,8 @@ DATABASE_URL=sqlite:///./data/vibefocus.db
 ### Management
 
 ```bash
+make docker-status   # Show container state and health
+make docker-restart  # Restart the detached container
 make docker-stop     # Stop containers
 make docker-logs     # Tail container logs
 make docker-build    # Rebuild after code changes
@@ -214,9 +220,9 @@ The MCP server runs outside Docker (it needs access to your local git repos). Wi
 | | Local (`make run`) | Docker (`make docker-run`) |
 |---|---|---|
 | **Setup** | Requires Python 3.12+, Node.js 18+ | Just Docker |
-| **Hot reload** | Yes (Vite + uvicorn) | Requires rebuild |
+| **Hot reload** | Yes (Vite + uvicorn) | Requires rebuild/restart |
 | **Ports** | 8000 (API) + 5173 (UI) | 8000 (single port) |
 | **Database** | `backend/vibefocus.db` | `./data/vibefocus.db` |
 | **Code analysis** | Works (Agent SDK accesses local repos) | Limited (repos not mounted) |
 | **MCP server** | Works fully | Backend only, MCP runs on host |
-| **Best for** | Active development | Quick demo / deployment |
+| **Best for** | Active development | Always-on local app / deployment |

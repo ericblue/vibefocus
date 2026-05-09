@@ -55,15 +55,13 @@ Agent SDK reads your actual codebase — detects tech stacks, surfaces TODOs, es
 ### Docker (easiest)
 
 ```bash
-docker run -d -p 8000:8000 \
-  -v ./data:/app/data \
-  -v /path/to/your/projects:/path/to/your/projects:ro \
-  -e OPENAI_API_KEY=your_key_here \
-  -e AI_PROVIDER=openai \
-  ericblue/vibefocus:latest
+cp backend/.env.example backend/.env
+# Edit backend/.env and set ANTHROPIC_API_KEY or OPENAI_API_KEY
+
+make docker-run PROJECTS_DIR=/path/to/your/projects
 ```
 
-Open http://localhost:8000. The volume mount to your projects directory enables git sync, code analysis, and AI code exploration.
+Open http://localhost:8000. Docker runs detached with `restart: unless-stopped`, so the app survives terminal exits and workspace archiving. The `PROJECTS_DIR` mount enables git sync, code analysis, and AI code exploration.
 
 ### From Source
 

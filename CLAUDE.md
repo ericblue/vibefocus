@@ -33,7 +33,9 @@ make fe-build         # Production frontend build: tsc && vite build
 ### Docker
 ```bash
 make docker-build     # Build images
-make docker-run       # Run containers (detached)
+make docker-run       # Build and run always-on container (detached)
+make docker-status    # Show container status and health
+make docker-restart   # Restart detached container
 make docker-stop      # Stop containers
 ```
 

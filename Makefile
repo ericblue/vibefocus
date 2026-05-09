@@ -10,6 +10,8 @@ BE_PORT     ?= 8000
 FE_PORT     ?= 5173
 PYTHON      ?= python3
 PROJECTS_DIR ?= $(HOME)/conductor/repos
+VIBEFOCUS_PORT ?= $(BE_PORT)
+DOCKER_COMPOSE ?= $(shell if docker compose version >/dev/null 2>&1; then echo "docker compose"; elif command -v docker-compose >/dev/null 2>&1; then echo "docker-compose"; else echo "docker compose"; fi)
 
 # ── Version (single source of truth: VERSION file) ──────────────────────────
 CURRENT_VERSION := $(shell cat VERSION 2>/dev/null || echo "0.0.0")
@@ -18,6 +20,11 @@ CURRENT_VERSION := $(shell cat VERSION 2>/dev/null || echo "0.0.0")
 DOCKER_REGISTRY ?= ericblue
 DOCKER_IMG      := $(APP_NAME)
 DOCKER_TAG      ?= $(CURRENT_VERSION)
+
+export DOCKER_REGISTRY
+export DOCKER_TAG
+export PROJECTS_DIR
+export VIBEFOCUS_PORT
 
 # ── Install / Setup ──────────────────────────────────────────────────────────
 
@@ -82,35 +89,57 @@ mcp-inspect: ## Inspect MCP server tools
 
 # ── Docker ───────────────────────────────────────────────────────────────────
 
-.PHONY: docker-build docker-run docker-stop docker-logs docker-push docker-test
+.PHONY: docker-env-check docker-build docker-run docker-restart docker-status docker-stop docker-logs docker-push docker-test
+
+docker-env-check:
+	@if [ ! -f "$(BE_DIR)/.env" ]; then \
+		echo "Missing $(BE_DIR)/.env. Run: cp $(BE_DIR)/.env.example $(BE_DIR)/.env"; \
+		exit 1; \
+	fi
 
 docker-build: ## Build Docker image (use DOCKER_TAG=x.y.z to tag)
-	DOCKER_BUILDKIT=1 docker compose build
-	docker tag $(DOCKER_IMG)-vibefocus:latest $(DOCKER_REGISTRY)/$(DOCKER_IMG):$(DOCKER_TAG)
+	docker build -t $(DOCKER_REGISTRY)/$(DOCKER_IMG):$(DOCKER_TAG) .
 	@echo "Built and tagged $(DOCKER_REGISTRY)/$(DOCKER_IMG):$(DOCKER_TAG)"
 
-docker-run: ## Start Docker container (reads .env for VIBEFOCUS_PORT and PROJECTS_DIR)
-	docker compose up -d
-	@echo "App running at http://localhost:$${VIBEFOCUS_PORT:-8000}"
+docker-run: docker-env-check ## Start always-on Docker container (detached; survives terminal/workspace archive)
+	$(DOCKER_COMPOSE) up -d --build
+	@echo "App running at http://localhost:$(VIBEFOCUS_PORT)"
+	@echo "Mounted projects from $(PROJECTS_DIR)"
 
-docker-test: docker-build ## Build, start, and verify Docker container
-	docker compose up -d
-	@sleep 3
-	@PORT=$$(docker compose port vibefocus 8000 | cut -d: -f2); \
+docker-test: docker-env-check docker-build ## Build, start, and verify Docker container
+	$(DOCKER_COMPOSE) up -d
+	@PORT=$$($(DOCKER_COMPOSE) port vibefocus 8000 | cut -d: -f2); \
 	echo "=== Health Check ==="; \
-	curl -sf http://localhost:$$PORT/health && echo ""; \
+	for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15; do \
+		curl -sf http://localhost:$$PORT/health && echo "" && break; \
+		if [ "$$i" = "15" ]; then $(DOCKER_COMPOSE) logs --tail=100 vibefocus; exit 1; fi; \
+		sleep 1; \
+	done; \
 	echo "=== Version ==="; \
 	curl -sf http://localhost:$$PORT/version && echo ""; \
 	echo "=== Projects Mount ==="; \
-	docker compose exec vibefocus ls /Users 2>/dev/null | head -3 || echo "(not mounted)"; \
+	$(DOCKER_COMPOSE) exec vibefocus ls "$(PROJECTS_DIR)" 2>/dev/null | head -3 || echo "(not mounted)"; \
 	echo ""; \
 	echo "Docker test passed. App at http://localhost:$$PORT"
 
+docker-restart: docker-env-check ## Restart always-on Docker container
+	$(DOCKER_COMPOSE) restart
+	@echo "App restarted at http://localhost:$(VIBEFOCUS_PORT)"
+
+docker-status: docker-env-check ## Show Docker container status and health
+	@$(DOCKER_COMPOSE) ps
+	@PORT=$$($(DOCKER_COMPOSE) port vibefocus 8000 2>/dev/null | cut -d: -f2); \
+	if [ -n "$$PORT" ]; then \
+		curl -sf http://localhost:$$PORT/health && echo ""; \
+	else \
+		echo "VibeFocus container is not publishing port 8000"; \
+	fi
+
 docker-stop: ## Stop and remove Docker containers
-	docker compose down
+	$(DOCKER_COMPOSE) down
 
 docker-logs: ## Tail Docker container logs
-	docker compose logs -f
+	$(DOCKER_COMPOSE) logs -f
 
 docker-push: ## Build and push Docker image with provenance attestations
 	@echo "Building and pushing with BuildKit provenance attestations..."
