@@ -39,6 +39,9 @@ make docker-restart   # Restart detached container
 make docker-stop      # Stop containers
 ```
 
+Docker stores the SQLite database at `~/.vibefocus/data/` (host path, independent of the repo).
+Override with `VIBEFOCUS_DATA=/your/path`. To redeploy after updates: `git pull && make docker-run`.
+
 There are no test suites, linters, or formatters configured in this project.
 
 ## Git & Pull Requests

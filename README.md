@@ -61,7 +61,9 @@ cp backend/.env.example backend/.env
 make docker-run PROJECTS_DIR=/path/to/your/projects
 ```
 
-Open http://localhost:8000. Docker runs detached with `restart: unless-stopped`, so the app survives terminal exits and workspace archiving. The `PROJECTS_DIR` mount enables git sync, code analysis, and AI code exploration.
+Open http://localhost:8000. Docker runs detached with `restart: unless-stopped` — survives terminal exits, workspace archiving, and reboots. The SQLite database is stored at `~/.vibefocus/data/` (independent of the repo), so you can move or re-clone the repo without losing data. The `PROJECTS_DIR` mount enables git sync, code analysis, and AI code exploration.
+
+**To redeploy after updates:** `git pull && make docker-run` — rebuilds the image from your local code, data is untouched.
 
 ### From Source
 

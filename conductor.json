@@ -1,5 +1,5 @@
 {
   "scripts": {
-    "setup": "if [ ! -e .env.local ] && [ -n \"${CONDUCTOR_ROOT_PATH:-}\" ] && [ -e \"$CONDUCTOR_ROOT_PATH/.env.local\" ]; then ln -s \"$CONDUCTOR_ROOT_PATH/.env.local\" .env.local; fi; for target in backend/.env frontend/.env; do if [ -e \"$target\" ] && [ ! -L \"$target\" ]; then echo \"Refusing to overwrite non-symlink $target\"; exit 1; fi; ln -sfn ../.env.local \"$target\"; done"
+    "setup": "if [ ! -e .env.local ] && [ -n \"${CONDUCTOR_ROOT_PATH:-}\" ] && [ -e \"$CONDUCTOR_ROOT_PATH/.env.local\" ]; then ln -s \"$CONDUCTOR_ROOT_PATH/.env.local\" .env.local; fi; for target in backend/.env frontend/.env; do if [ -e \"$target\" ] && [ ! -L \"$target\" ]; then echo \"Refusing to overwrite non-symlink $target\"; exit 1; fi; ln -sfn ../.env.local \"$target\"; done; VIBEFOCUS_DATA=\"${VIBEFOCUS_DATA:-$HOME/.vibefocus/data}\"; mkdir -p \"$VIBEFOCUS_DATA\" && echo \"Data dir: $VIBEFOCUS_DATA\""
   }
 }
