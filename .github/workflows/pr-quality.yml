@@ -3,16 +3,22 @@ name: PR Quality Gates
 on:
   pull_request:
     branches: [master]
+    types: [opened, synchronize, reopened, edited]
 
 jobs:
   pr-metadata:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
     steps:
       - name: Validate PR body contains ExecPlan path or N/A reason
         env:
-          PR_BODY: ${{ github.event.pull_request.body }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_REPO: ${{ github.repository }}
         run: |
-          BODY="${PR_BODY:-}"
+          BODY="$(gh pr view "$PR_NUMBER" --repo "$PR_REPO" --json body -q .body)"
 
           has_execplan=0
           has_na_reason=0
@@ -25,13 +31,23 @@ jobs:
             has_na_reason=1
           fi
 
+          recovery_hint() {
+            echo
+            echo "::notice::How to recover after editing the PR body:"
+            echo "::notice::  This workflow now re-runs automatically on body edits."
+            echo "::notice::  If it does not re-fire, push any commit, for example:"
+            echo "::notice::  git commit --allow-empty -m rerun"
+          }
+
           if [ "$has_execplan" -eq 0 ] && [ "$has_na_reason" -eq 0 ]; then
-            echo "PR body must include an ExecPlan path or a populated N/A reason."
+            echo "::error::PR body must include an ExecPlan path (for example, .agent/execplans/YYYY-MM-DD-slug.md) or a populated 'N/A reason: <text>' line."
+            recovery_hint
             exit 1
           fi
 
           if ! printf '%s' "$BODY" | grep -q "Validation Evidence"; then
-            echo "PR body must include the Validation Evidence section."
+            echo "::error::PR body must include the Validation Evidence section."
+            recovery_hint
             exit 1
           fi
 
