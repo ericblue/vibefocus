@@ -46,6 +46,54 @@ body {
 *:hover::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); }
 [data-theme="light"] ::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.15); }
 
+.lifecycle-timeline::-webkit-scrollbar { display: none; }
+.lifecycle-range {
+  width: 100%;
+  height: 16px;
+  appearance: none;
+  -webkit-appearance: none;
+  background: transparent;
+  cursor: pointer;
+}
+.lifecycle-range::-webkit-slider-runnable-track {
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid var(--border2);
+}
+.lifecycle-range::-webkit-slider-thumb {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 72px;
+  height: 8px;
+  margin-top: -1px;
+  border-radius: 999px;
+  background: rgba(122,120,146,0.9);
+  border: 1px solid rgba(255,255,255,0.18);
+}
+.lifecycle-range::-moz-range-track {
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid var(--border2);
+}
+.lifecycle-range::-moz-range-thumb {
+  width: 72px;
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(122,120,146,0.9);
+  border: 1px solid rgba(255,255,255,0.18);
+}
+[data-theme="light"] .lifecycle-range::-webkit-slider-runnable-track,
+[data-theme="light"] .lifecycle-range::-moz-range-track {
+  background: rgba(0,0,0,0.07);
+}
+[data-theme="light"] .lifecycle-range::-webkit-slider-thumb,
+[data-theme="light"] .lifecycle-range::-moz-range-thumb {
+  background: rgba(107,107,128,0.75);
+  border-color: rgba(0,0,0,0.14);
+}
+
 .header-logo { flex-shrink: 0; }
 
 /* Keep navbar dark in light mode */
