@@ -292,6 +292,32 @@ export interface LifecycleItem {
   monthly_activity: { month: string; commits: number }[]
 }
 
+// ── Local repo scan ─────────────────────────────────────────────────────────
+
+export interface ScanConfig {
+  projects_dir: string | null
+  projects_dir_raw: string | null
+  exists: boolean
+  configured: boolean
+  ready: boolean
+}
+
+export interface ScanProjectResult {
+  action: 'created' | 'updated' | 'skipped'
+  name: string
+  path: string
+  error?: string
+}
+
+export interface ScanResult {
+  root: string
+  total: number
+  created: number
+  updated: number
+  skipped: number
+  projects: ScanProjectResult[]
+}
+
 
 // ── UI helpers ────────────────────────────────────────────────────────────────
 

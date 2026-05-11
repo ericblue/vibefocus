@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react'
-import { useProjects, useBuckets } from './hooks/useProjects'
+import { useProjects, useBuckets, useProject } from './hooks/useProjects'
 import { useAppStore } from './store/appStore'
 import { Header } from './components/Header'
 import { Dashboard } from './components/Dashboard'
@@ -26,9 +26,12 @@ export default function App() {
     return () => window.removeEventListener('hashchange', onHashChange)
   }, [])
   const { data: projects = [], isLoading, isError } = useProjects()
+  const { data: drawerProjectById, isError: drawerProjectMissing } = useProject(drawerProjectId)
   const { data: buckets = [] } = useBuckets()
 
-  const drawerProject = drawerProjectId ? projects.find(p => p.id === drawerProjectId) : null
+  const drawerProject = drawerProjectId
+    ? projects.find(p => p.id === drawerProjectId) ?? drawerProjectById ?? null
+    : null
 
   if (isError) {
     return (
@@ -68,8 +71,8 @@ export default function App() {
             onClick={closeDrawer}
             style={{
               position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)',
-              zIndex: 100, opacity: drawerProject ? 1 : 0,
-              transition: 'opacity 0.2s', pointerEvents: drawerProject ? 'auto' : 'none',
+              zIndex: 100, opacity: 1,
+              transition: 'opacity 0.2s', pointerEvents: 'auto',
             }}
           />
           <div style={{
@@ -77,12 +80,16 @@ export default function App() {
             width: 'min(780px, 100vw)',
             background: 'var(--surface)', borderLeft: '1px solid var(--border2)',
             zIndex: 101, display: 'flex', flexDirection: 'column',
-            transform: drawerProject ? 'translateX(0)' : 'translateX(100%)',
+            transform: 'translateX(0)',
             transition: 'transform 0.25s cubic-bezier(0.4,0,0.2,1)',
           }}>
             {drawerProject
               ? <ProjectDrawer project={drawerProject} />
-              : <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--muted)' }}>Loading...</div>
+              : (
+                <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--muted)', padding: 24 }}>
+                  {drawerProjectMissing ? 'Project not found.' : 'Loading project...'}
+                </div>
+              )
             }
           </div>
         </>

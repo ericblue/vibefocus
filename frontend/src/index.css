@@ -118,14 +118,29 @@ body {
   transition: all 0.12s;
   white-space: nowrap;
 }
-.btn:hover { background: var(--surface2); }
-.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.btn:hover:not(:disabled) { background: var(--surface2); }
+.btn:disabled {
+  cursor: not-allowed;
+  background: var(--surface2);
+  color: var(--muted);
+  border-color: var(--border2);
+}
 .btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
 .btn-primary:hover:not(:disabled) { background: #1d4ed8; border-color: #1d4ed8; }
+.btn-primary:disabled {
+  background: rgba(37,99,235,0.35);
+  border-color: rgba(37,99,235,0.25);
+  color: rgba(255,255,255,0.82);
+}
+[data-theme="light"] .btn-primary:disabled {
+  background: rgba(37,99,235,0.18);
+  border-color: rgba(37,99,235,0.22);
+  color: #3b4a68;
+}
 .btn-ghost { border-color: transparent; color: var(--muted); }
-.btn-ghost:hover { background: var(--surface2); color: var(--text); border-color: transparent; }
+.btn-ghost:hover:not(:disabled) { background: var(--surface2); color: var(--text); border-color: transparent; }
 .btn-danger { color: #f87171; border-color: rgba(248,113,113,0.25); }
-.btn-danger:hover { background: rgba(248,113,113,0.1); }
+.btn-danger:hover:not(:disabled) { background: rgba(248,113,113,0.1); }
 .btn-sm { padding: 4px 10px; font-size: 11px; }
 .btn-icon {
   display: inline-flex;
@@ -143,6 +158,17 @@ body {
   flex-shrink: 0;
 }
 .btn-icon:hover { background: var(--surface2); color: var(--text); }
+
+.spinner {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid var(--border3);
+  border-top-color: var(--accent);
+  display: inline-block;
+  flex-shrink: 0;
+  animation: spin 0.8s linear infinite;
+}
 
 /* ── Item delete button ── */
 .item-del {
@@ -193,6 +219,9 @@ body {
 @keyframes pulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.35; }
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 @keyframes bounce {
   0%, 60%, 100% { transform: translateY(0); }

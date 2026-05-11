@@ -4,10 +4,11 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    anthropic_api_key: str
+    anthropic_api_key: str | None = None
     database_url: str = "sqlite:///./vibefocus.db"
     cors_origins: str = "http://localhost:5173"
     port: int = 8000
+    projects_dir: str | None = None
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 

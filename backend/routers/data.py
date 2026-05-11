@@ -1,6 +1,6 @@
 """
 Data import/export endpoints for VibeFocus.
-Supports JSON (full/per-project), CSV, SQLite backup, and JSON import.
+Supports JSON (full/per-project), CSV, SQLite backup, JSON import, and local repo scanning.
 """
 
 import csv
@@ -440,3 +440,54 @@ async def import_preview(file: UploadFile = File(...)):
         },
         "projects": [{"name": p["name"], "completion_pct": p.get("completion_pct", 0)} for p in projects],
     }
+
+
+# ── Local repo scan ───────────────────────────────────────────────────────────
+
+@router.get("/scan-config")
+def scan_config():
+    """Return the configured PROJECTS_DIR and whether it is ready to scan."""
+    raw = settings.projects_dir
+    resolved = str(Path(raw).expanduser().resolve()) if raw else None
+    exists = Path(resolved).is_dir() if resolved else False
+    return {
+        "projects_dir": resolved,
+        "projects_dir_raw": raw,
+        "exists": exists,
+        "configured": bool(raw),
+        "ready": bool(raw and exists),
+    }
+
+
+@router.post("/scan")
+def scan_local_projects(
+    root: str | None = Query(default=None, description="Directory to scan. Falls back to PROJECTS_DIR setting."),
+    recursive: bool = Query(default=False),
+    db: Session = Depends(get_db),
+):
+    """Scan a local directory for git repositories and import/update projects."""
+    from import_local_projects import scan_repos
+
+    scan_root = root or settings.projects_dir
+    if not scan_root:
+        raise HTTPException(
+            400,
+            {
+                "code": "scan_root_required",
+                "message": "Enter a directory path to scan or set PROJECTS_DIR in backend/.env.",
+            },
+        )
+
+    root_path = Path(scan_root).expanduser().resolve()
+    if not root_path.is_dir():
+        raise HTTPException(
+            400,
+            {
+                "code": "scan_root_missing",
+                "message": f"Directory not found: {scan_root}",
+                "root": scan_root,
+                "resolved_root": str(root_path),
+            },
+        )
+
+    return scan_repos(db, root_path, recursive=recursive)

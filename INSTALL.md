@@ -139,20 +139,31 @@ docker run -d \
   -v ./data:/app/data \
   -v /Users/you/Development:/Users/you/Development:ro \
   -e ANTHROPIC_API_KEY=your_key_here \
+  -e PROJECTS_DIR=/Users/you/Development \
   ericblue/vibefocus:latest
 ```
 
 Replace `/Users/you/Development` with the parent directory where your git repos live. The path inside the container must match the host path so that `local_path` values on your projects resolve correctly. The `:ro` flag makes it read-only.
 
-If using `docker-compose.yml`, uncomment the volume mount line and set your path:
+If using `docker-compose.yml`, set `PROJECTS_DIR` before starting the container:
 
-```yaml
-volumes:
-  - ./data:/app/data
-  - /Users/you/Development:/Users/you/Development:ro
+```bash
+PROJECTS_DIR=/Users/you/Development docker compose up -d --build
 ```
 
 Without this mount, VibeFocus still works but analytics (heatmaps, velocity, streaks) will be empty and code analysis won't be available.
+
+### Importing Existing Local Repos
+
+After startup, open Settings and use **Import Local Git Repositories**. Enter the parent folder that contains your repos, for example `/Users/you/Development`, then click **Scan Repositories**. VibeFocus creates missing projects, updates matching projects by local path or GitHub URL, infers GitHub URLs from `origin`, and refreshes lightweight git stats like branch, dirty status, and latest commit.
+
+If the Settings page says the directory is missing, the backend cannot see that path. For Docker, restart with the folder mounted:
+
+```bash
+PROJECTS_DIR=/Users/you/Development docker compose up -d --build
+```
+
+From source, set `PROJECTS_DIR` in `backend/.env` or enter the absolute path in Settings. Re-running a scan is safe; it updates existing projects without importing commit logs. Use Analytics sync later when you want heatmaps, velocity, streaks, and health history.
 
 ### From Source
 

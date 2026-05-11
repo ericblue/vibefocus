@@ -8,6 +8,7 @@ import type {
   HeatmapDay, VelocityWeek, ProjectVelocityWeek,
   FocusItem, HealthItem, TechStackItem,
   ContributionPatterns, StreakData, LifecycleItem,
+  ScanConfig, ScanResult,
 } from '../types'
 
 const BASE = '/api'
@@ -19,7 +20,16 @@ async function req<T>(path: string, init?: RequestInit): Promise<T> {
   })
   if (!res.ok) {
     const detail = await res.text()
-    throw new Error(`API ${res.status}: ${detail}`)
+    let message = detail
+    try {
+      const parsed = JSON.parse(detail)
+      message = typeof parsed.detail === 'string'
+        ? parsed.detail
+        : parsed.detail?.message ?? detail
+    } catch {
+      // Keep the raw response text when it is not JSON.
+    }
+    throw new Error(`API ${res.status}: ${message}`)
   }
   if (res.status === 204) return undefined as T
   return res.json()
@@ -163,6 +173,17 @@ export const api = {
         `/projects/${projectId}/sync-git-log${fetchAll ? '?fetch_all=true' : ''}`,
         { method: 'POST' }
       ),
+  },
+
+  data: {
+    scanConfig: () => req<ScanConfig>('/data/scan-config'),
+    scan: (body: { root?: string; recursive?: boolean }) => {
+      const params = new URLSearchParams()
+      if (body.root?.trim()) params.set('root', body.root.trim())
+      if (body.recursive) params.set('recursive', 'true')
+      const qs = params.toString()
+      return req<ScanResult>(`/data/scan${qs ? '?' + qs : ''}`, { method: 'POST' })
+    },
   },
 
   chatSessions: {

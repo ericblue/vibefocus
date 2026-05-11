@@ -324,7 +324,7 @@ function TableView({ projects, bucketMap, stateMap, openDrawer, sortField, sortD
 // ── Onboarding ──────────────────────────────────────────────────────────────
 
 function Onboarding({ buckets, states }: { buckets: Bucket[]; states: State[] }) {
-  const { openDrawer } = useAppStore()
+  const { openDrawer, setView } = useAppStore()
   const qc = useQueryClient()
   const [step, setStep] = useState<'welcome' | 'create'>('welcome')
   const [name, setName] = useState('')
@@ -344,6 +344,8 @@ function Onboarding({ buckets, states }: { buckets: Bucket[]; states: State[] })
       state_id: stateId || null,
       local_path: localPath || null,
     })
+    qc.setQueryData(['projects'], (old: any) => Array.isArray(old) ? [p, ...old] : [p])
+    qc.setQueryData(['projects', p.id], p)
     qc.invalidateQueries({ queryKey: ['projects'] })
     openDrawer(p.id, 'overview')
     setCreating(false)
@@ -402,15 +404,25 @@ function Onboarding({ buckets, states }: { buckets: Bucket[]; states: State[] })
           ))}
         </div>
 
-        <div style={{ textAlign: 'center' }}>
+        <div style={{ display: 'flex', justifyContent: 'center', gap: 10, flexWrap: 'wrap' }}>
           <button
             className="btn btn-primary"
+            onClick={() => setView('settings')}
+            style={{ padding: '10px 28px', fontSize: 14 }}
+          >
+            Scan a Folder of Repos
+          </button>
+          <button
+            className="btn"
             onClick={() => setStep('create')}
             style={{ padding: '10px 28px', fontSize: 14 }}
           >
             Create Your First Project
           </button>
         </div>
+        <p style={{ textAlign: 'center', fontSize: 11, color: 'var(--muted)', marginTop: 12 }}>
+          Scanning imports local paths, GitHub remotes, and git stats without requiring an AI key.
+        </p>
       </div>
     )
   }
