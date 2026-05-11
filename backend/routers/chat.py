@@ -11,6 +11,14 @@ from services.chat_service import stream_chat, maybe_compact_session
 router = APIRouter(prefix="/api/chat", tags=["chat"])
 
 
+def _safe_error_message(error: Exception) -> str:
+    text = str(error)
+    lowered = text.lower()
+    if "api key" in lowered or "x-api-key" in lowered or "authentication" in lowered:
+        return "AI provider authentication failed. Check the API key in backend/.env."
+    return text
+
+
 def _find_session(db: Session, scope_type: str, scope_id: str | None) -> ChatSession | None:
     q = db.query(ChatSession).filter(ChatSession.scope_type == scope_type)
     if scope_id:
@@ -82,19 +90,23 @@ async def chat(body: ChatRequest, db: Session = Depends(get_db)):
     collected_chunks: list[str] = []
 
     async def event_stream():
-        async for chunk in stream_chat(db, messages, body.focus_project_id):
-            if isinstance(chunk, dict) and chunk.get("type") == "status":
-                yield f"event: status\ndata: {chunk['message']}\n\n"
-            else:
-                collected_chunks.append(chunk)
-                yield f"data: {chunk}\n\n"
-        yield "data: [DONE]\n\n"
+        try:
+            async for chunk in stream_chat(db, messages, body.focus_project_id):
+                if isinstance(chunk, dict) and chunk.get("type") == "status":
+                    yield f"event: status\ndata: {chunk['message']}\n\n"
+                else:
+                    collected_chunks.append(chunk)
+                    yield f"data: {chunk}\n\n"
+            yield "data: [DONE]\n\n"
 
-        # Persist after stream completes
-        full_response = "".join(collected_chunks)
-        if last_user_msg and full_response:
-            session = _persist_exchange(db, body.focus_project_id, last_user_msg, full_response)
-            await maybe_compact_session(db, session)
+            # Persist after stream completes
+            full_response = "".join(collected_chunks)
+            if last_user_msg and full_response:
+                session = _persist_exchange(db, body.focus_project_id, last_user_msg, full_response)
+                await maybe_compact_session(db, session)
+        except Exception as e:
+            yield f"event: error\ndata: {_safe_error_message(e)}\n\n"
+            yield "data: [DONE]\n\n"
 
     return StreamingResponse(
         event_stream(),
