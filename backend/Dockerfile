@@ -1,9 +1,11 @@
-FROM python:3.12-slim
+# Alpine keeps the runtime surface minimal (git without the perl dependency)
+FROM python:3.12-alpine
 
 WORKDIR /app
 
 COPY backend/requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt \
+    && pip uninstall -y setuptools wheel pip
 
 COPY backend/ .
 COPY VERSION /app/VERSION
@@ -15,7 +17,7 @@ RUN if ls .env* *.db >/dev/null 2>&1; then \
     fi
 
 # Create non-root user and data directory for SQLite (mounted as volume)
-RUN groupadd -r vibefocus && useradd -r -g vibefocus -d /app vibefocus \
+RUN addgroup -S vibefocus && adduser -S -G vibefocus -h /app -s /sbin/nologin vibefocus \
     && mkdir -p /app/data \
     && chown -R vibefocus:vibefocus /app
 

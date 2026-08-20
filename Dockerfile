@@ -8,17 +8,20 @@ COPY frontend/ .
 RUN npm run build
 
 # ── Final image ──────────────────────────────────────────────────────────────
-FROM python:3.12-slim
+# Alpine keeps the runtime surface minimal: git here has no perl dependency,
+# which drops the largest sources of OS-level CVEs in the debian-slim base.
+FROM python:3.12-alpine
 
 WORKDIR /app
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends git && rm -rf /var/lib/apt/lists/* \
+# Install system dependencies (git is needed at runtime for repo sync)
+RUN apk add --no-cache git \
     && git config --system --add safe.directory '*'
 
 # Install Python dependencies
 COPY backend/requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt \
+    && pip uninstall -y setuptools wheel pip
 
 # Copy backend code
 COPY backend/ .
@@ -34,7 +37,7 @@ RUN if ls .env* *.db >/dev/null 2>&1; then \
 COPY --from=frontend-build /app/frontend/dist /app/static
 
 # Create non-root user and data directory
-RUN groupadd -r vibefocus && useradd -r -g vibefocus -d /app vibefocus \
+RUN addgroup -S vibefocus && adduser -S -G vibefocus -h /app -s /sbin/nologin vibefocus \
     && mkdir -p /app/data \
     && chown -R vibefocus:vibefocus /app
 
