@@ -28,20 +28,26 @@ from mcp.server.fastmcp import FastMCP
 
 # ── Config ───────────────────────────────────────────────────────────────────
 
-BASE_URL = os.environ.get("VIBEFOCUS_API_URL", "http://localhost:8000")
+# Default to the host-published Docker port (4010 → container 8000), since this
+# MCP server runs on the host. Override with VIBEFOCUS_API_URL if needed.
+BASE_URL = os.environ.get("VIBEFOCUS_API_URL", "http://localhost:4010")
 API = f"{BASE_URL}/api"
+
+# Disable SSL verification for local HTTPS proxies (e.g. vibefocus.local)
+_SSL_VERIFY = not BASE_URL.startswith("https://") or os.environ.get("VIBEFOCUS_SSL_VERIFY", "") == "1"
+_client = httpx.Client(verify=_SSL_VERIFY, timeout=30)
 
 
 # ── HTTP helpers ─────────────────────────────────────────────────────────────
 
 def _get(path: str, params: dict | None = None) -> dict | list:
-    r = httpx.get(f"{API}{path}", params=params, timeout=15)
+    r = _client.get(f"{API}{path}", params=params, timeout=15)
     r.raise_for_status()
     return r.json()
 
 
 def _post(path: str, body: dict | None = None) -> dict | list:
-    r = httpx.post(f"{API}{path}", json=body, timeout=30)
+    r = _client.post(f"{API}{path}", json=body, timeout=30)
     r.raise_for_status()
     if r.status_code == 204:
         return {"ok": True}
@@ -49,13 +55,13 @@ def _post(path: str, body: dict | None = None) -> dict | list:
 
 
 def _patch(path: str, body: dict) -> dict:
-    r = httpx.patch(f"{API}{path}", json=body, timeout=15)
+    r = _client.patch(f"{API}{path}", json=body, timeout=15)
     r.raise_for_status()
     return r.json()
 
 
 def _delete(path: str) -> dict:
-    r = httpx.delete(f"{API}{path}", timeout=15)
+    r = _client.delete(f"{API}{path}", timeout=15)
     r.raise_for_status()
     return {"ok": True}
 

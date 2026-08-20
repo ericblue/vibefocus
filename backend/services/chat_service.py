@@ -432,7 +432,7 @@ async def stream_chat(
         yield {"type": "status", "message": "Thinking..."}
 
         kwargs: dict = dict(
-            model="claude-sonnet-4-20250514",
+            model="claude-sonnet-5",
             max_tokens=2048,
             system=system,
             messages=api_messages,
@@ -519,7 +519,7 @@ async def maybe_compact_session(db: Session, session: ChatSession) -> None:
 
     client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
     response = await client.messages.create(
-        model="claude-sonnet-4-20250514",
+        model="claude-sonnet-5",
         max_tokens=600,
         messages=[{"role": "user", "content": summarization_prompt}],
     )
