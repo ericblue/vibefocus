@@ -1,0 +1,35 @@
+# VCS and editor state
+.git
+.gitignore
+.DS_Store
+**/.DS_Store
+
+# Local environment files — must never enter the build context
+**/.env
+**/.env.*
+**/.envrc
+
+# Local databases and runtime data (mounted as a volume at runtime)
+data/
+**/*.db
+**/*.db-shm
+**/*.db-wal
+
+# Dependency and build trees rebuilt inside the image
+**/venv
+**/__pycache__
+**/*.pyc
+frontend/node_modules
+frontend/dist
+
+# Components not part of the container image
+mcp-server/
+website/
+docs/
+assets/
+docker-compose.yml
+Makefile
+README.md
+INSTALL.md
+RELEASING.md
+LICENSE
