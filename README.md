@@ -101,9 +101,30 @@ vibefocus/
 │       ├── hooks/             # TanStack Query hooks
 │       ├── store/             # Zustand UI state
 │       └── api/               # Typed fetch client
-└── mcp-server/
-    └── server.py              # 32-tool MCP server
+├── mcp-server/
+│   └── server.py              # 32-tool MCP server
+└── scripts/
+    └── sync-all-git.py        # Bulk git stats + commit-log sync (cron/launchd-friendly)
 ```
+
+## Keeping Git Stats Fresh
+
+Analytics (heatmap, velocity, health) are computed from synced commit logs, so
+they are only as current as the last sync. Sync happens per project via
+`POST /api/projects/{id}/refresh-stats` and `POST /api/projects/{id}/sync-git-log`,
+or in bulk with:
+
+```bash
+python3 scripts/sync-all-git.py            # syncs every project with a local .git
+VIBEFOCUS_API_URL=http://localhost:8000 \
+python3 scripts/sync-all-git.py            # non-default API location
+```
+
+The script is idempotent and incremental (only new commits are fetched), making
+it a good fit for a nightly cron job or macOS launchd agent. Example launchd
+schedule: run `/usr/bin/python3 <repo>/scripts/sync-all-git.py` daily at 03:30
+with output to a log file; launchd runs missed jobs after wake, so a sleeping
+Mac still catches up.
 
 ---
 
