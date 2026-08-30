@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react'
+import React, { useMemo, useRef, useEffect, useState } from 'react'
 import type { LifecycleItem } from '../../types'
 
 interface Props {
@@ -6,18 +6,13 @@ interface Props {
 }
 
 export function ProjectLifecycle({ data }: Props) {
-  if (data.length === 0) {
-    return (
-      <div>
-        <h3 style={{ fontSize: 13, fontWeight: 700, marginBottom: 12 }}>Project Lifecycle</h3>
-        <div style={{ padding: '24px 0', textAlign: 'center', color: 'var(--muted)', fontSize: 12 }}>
-          No commit data yet.
-        </div>
-      </div>
-    )
-  }
-
   const { months, minDate, monthCount, barWidth } = useMemo(() => {
+    if (data.length === 0) {
+      const now = new Date()
+      now.setDate(1)
+      return { months: [], minDate: now, monthCount: 0, barWidth: 720 }
+    }
+
     const allDates = data.flatMap(p => [new Date(p.first_commit), new Date(p.last_commit)])
     const minDate = new Date(Math.min(...allDates.map(d => d.getTime())))
     const maxDate = new Date(Math.max(...allDates.map(d => d.getTime())))
@@ -34,18 +29,59 @@ export function ProjectLifecycle({ data }: Props) {
       })
     }
 
-    return { months, minDate, monthCount, barWidth: Math.max(600, monthCount * 60) }
+    return { months, minDate, monthCount, barWidth: Math.max(900, monthCount * 64) }
   }, [data])
 
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const [scrollPct, setScrollPct] = useState(1000)
+
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => {
+      const el = scrollRef.current
+      if (!el) return
+      const maxScroll = el.scrollWidth - el.clientWidth
+      el.scrollLeft = maxScroll
+      setScrollPct(maxScroll > 0 ? 1000 : 0)
+    })
+    return () => cancelAnimationFrame(frame)
+  }, [data])
+
+  if (data.length === 0) {
+    return (
+      <div>
+        <h3 style={{ fontSize: 13, fontWeight: 700, marginBottom: 12 }}>Project Lifecycle</h3>
+        <div style={{ padding: '24px 0', textAlign: 'center', color: 'var(--muted)', fontSize: 12 }}>
+          No commit data yet.
+        </div>
+      </div>
+    )
+  }
+
   const ROW_HEIGHT = 32
-  const LEFT = 180
+  const LABEL_WIDTH = 180
+  const HEADER_HEIGHT = 26
   const chartWidth = barWidth
-  const colWidth = (chartWidth - LEFT) / Math.max(monthCount, 1)
+  const colWidth = chartWidth / Math.max(monthCount, 1)
 
   function monthOffset(dateStr: string): number {
     const d = new Date(dateStr)
     return (d.getFullYear() - minDate.getFullYear()) * 12 + d.getMonth() - minDate.getMonth() +
       d.getDate() / 30
+  }
+
+  function scrollToPct(value: number) {
+    setScrollPct(value)
+    const el = scrollRef.current
+    if (!el) return
+    const maxScroll = el.scrollWidth - el.clientWidth
+    el.scrollLeft = maxScroll * (value / 1000)
+  }
+
+  function handleTimelineScroll() {
+    const el = scrollRef.current
+    if (!el) return
+    const maxScroll = el.scrollWidth - el.clientWidth
+    setScrollPct(maxScroll > 0 ? Math.round((el.scrollLeft / maxScroll) * 1000) : 0)
   }
 
   return (
@@ -56,23 +92,90 @@ export function ProjectLifecycle({ data }: Props) {
           {data.length} projects with commit history
         </span>
       </div>
-      <div style={{ overflowX: 'auto' }}>
-        <svg width={chartWidth} height={data.length * ROW_HEIGHT + 30} style={{ display: 'block' }}>
+
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: `${LABEL_WIDTH}px minmax(0, 1fr)`,
+        alignItems: 'start',
+        marginBottom: 8,
+      }}>
+        <div />
+        <input
+          className="lifecycle-range"
+          type="range"
+          aria-label="Scroll project lifecycle timeline"
+          min={0}
+          max={1000}
+          value={scrollPct}
+          onChange={e => scrollToPct(Number(e.currentTarget.value))}
+        />
+      </div>
+
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: `${LABEL_WIDTH}px minmax(0, 1fr)`,
+        alignItems: 'start',
+      }}>
+        <div style={{
+          position: 'relative',
+          zIndex: 1,
+          background: 'var(--surface)',
+          boxShadow: '12px 0 18px -18px rgba(0,0,0,0.8)',
+        }}>
+          <div style={{
+            height: HEADER_HEIGHT,
+            display: 'flex',
+            alignItems: 'center',
+            fontSize: 9,
+            fontFamily: 'var(--mono)',
+            color: 'var(--muted)',
+          }}>
+            Project
+          </div>
+          {data.map(project => (
+            <div key={project.project_id} style={{
+              height: ROW_HEIGHT,
+              display: 'flex',
+              alignItems: 'center',
+              paddingRight: 12,
+              fontSize: 11,
+              fontWeight: 500,
+              color: 'var(--text)',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+            }} title={project.project_name}>
+              {project.project_name}
+            </div>
+          ))}
+        </div>
+
+        <div
+          ref={scrollRef}
+          className="lifecycle-timeline"
+          onScroll={handleTimelineScroll}
+          style={{
+            overflowX: 'auto',
+            overflowY: 'hidden',
+            scrollbarWidth: 'none',
+          }}
+        >
+          <svg width={chartWidth + 56} height={data.length * ROW_HEIGHT + HEADER_HEIGHT} style={{ display: 'block' }}>
           {/* Month labels */}
           {months.map((m, i) => (
             <g key={i}>
-              <text x={LEFT + i * colWidth} y={12} fill="var(--muted)" fontSize={9} fontFamily="var(--mono)">
+              <text x={i * colWidth} y={12} fill="var(--muted)" fontSize={9} fontFamily="var(--mono)">
                 {m.label}
               </text>
-              <line x1={LEFT + i * colWidth} y1={18} x2={LEFT + i * colWidth} y2={data.length * ROW_HEIGHT + 20} stroke="var(--border)" strokeDasharray="2 4" />
+              <line x1={i * colWidth} y1={18} x2={i * colWidth} y2={data.length * ROW_HEIGHT + 20} stroke="var(--border)" strokeDasharray="2 4" />
             </g>
           ))}
 
           {/* Project rows */}
           {data.map((project, idx) => {
-            const y = idx * ROW_HEIGHT + 26
-            const startX = LEFT + monthOffset(project.first_commit) * colWidth
-            const endX = LEFT + monthOffset(project.last_commit) * colWidth
+            const y = idx * ROW_HEIGHT + HEADER_HEIGHT
+            const startX = monthOffset(project.first_commit) * colWidth
+            const endX = monthOffset(project.last_commit) * colWidth
             const barLen = Math.max(endX - startX, 4)
 
             // Activity intensity from monthly data
@@ -80,10 +183,6 @@ export function ProjectLifecycle({ data }: Props) {
 
             return (
               <g key={project.project_id}>
-                {/* Project name */}
-                <text x={LEFT - 8} y={y + 12} fill="var(--text)" fontSize={11} textAnchor="end" fontWeight={500}>
-                  {project.project_name.length > 22 ? project.project_name.slice(0, 22) + '...' : project.project_name}
-                </text>
                 {/* Timeline bar */}
                 <rect x={startX} y={y + 2} width={barLen} height={16} rx={3} fill="rgba(37,99,235,0.15)" />
                 {/* Monthly activity segments */}
@@ -94,7 +193,7 @@ export function ProjectLifecycle({ data }: Props) {
                   return (
                     <rect
                       key={mi}
-                      x={LEFT + mOffset * colWidth}
+                      x={mOffset * colWidth}
                       y={y + 2}
                       width={Math.max(colWidth - 1, 2)}
                       height={16}
@@ -112,7 +211,8 @@ export function ProjectLifecycle({ data }: Props) {
               </g>
             )
           })}
-        </svg>
+          </svg>
+        </div>
       </div>
     </div>
   )

@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import type { HeatmapDay } from '../../types'
 import type { Project } from '../../types'
 
@@ -9,9 +9,7 @@ interface Props {
   title?: string
 }
 
-const CELL_SIZE = 13
-const CELL_GAP = 2
-const TOTAL = CELL_SIZE + CELL_GAP
+const Y_AXIS_WIDTH = 30
 const DAYS_LABELS = ['', 'Mon', '', 'Wed', '', 'Fri', '']
 const DOW_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
@@ -39,10 +37,29 @@ export function CommitHeatmap({ data, projects, onFilterChange, title = 'Commit 
   const [dateRange, setDateRange] = useState<DateRange>('1y')
   const [viewMode, setViewMode] = useState<ViewMode>('grid')
   const [year, setYear] = useState(new Date().getFullYear())
+  const gridWrapRef = useRef<HTMLDivElement>(null)
+  const [gridWidth, setGridWidth] = useState(0)
   const currentYear = new Date().getFullYear()
 
   const rangeConfig = DATE_RANGES.find(r => r.value === dateRange)!
   const canToggleView = dateRange === '4w' || dateRange === '3m'
+
+  useEffect(() => {
+    const el = gridWrapRef.current
+    if (!el) return
+
+    const updateWidth = () => setGridWidth(el.clientWidth)
+    updateWidth()
+
+    if (typeof ResizeObserver === 'undefined') {
+      window.addEventListener('resize', updateWidth)
+      return () => window.removeEventListener('resize', updateWidth)
+    }
+
+    const observer = new ResizeObserver(updateWidth)
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [])
 
   function handleProjectChange(projectId: string) {
     setSelectedProject(projectId)
@@ -153,6 +170,10 @@ export function CommitHeatmap({ data, projects, onFilterChange, title = 'Commit 
   const totalDays = grid.length
   const bestWeek = weekSummaries.reduce((best, w) => w.total > best.total ? w : best, { total: 0, startDate: '', endDate: '', col: 0 })
   const maxDaily = dailyData.length > 0 ? Math.max(...dailyData.map(d => d.count), 1) : 1
+  const gridTotal = Math.max(10, Math.floor((gridWidth - Y_AXIS_WIDTH) / Math.max(weeks, 1)))
+  const gridGap = Math.max(2, Math.min(4, Math.floor(gridTotal * 0.14)))
+  const gridCell = Math.max(8, gridTotal - gridGap)
+  const gridSvgWidth = Math.max(weeks * gridTotal + Y_AXIS_WIDTH, gridWidth)
 
   const projectsWithPath = projects?.filter(p => p.local_path) ?? []
 
@@ -265,20 +286,20 @@ export function CommitHeatmap({ data, projects, onFilterChange, title = 'Commit 
       {/* Grid view (default) */}
       {viewMode === 'grid' && (
         <>
-          <div style={{ overflowX: 'auto', paddingBottom: 4 }}>
+          <div ref={gridWrapRef} style={{ overflowX: 'hidden', paddingBottom: 4 }}>
             <svg
-              width={weeks * TOTAL + 30}
-              height={7 * TOTAL + 24}
+              width={gridSvgWidth}
+              height={7 * gridTotal + 24}
               style={{ display: 'block' }}
             >
               {months.map((m, i) => (
-                <text key={i} x={m.col * TOTAL + 30} y={10} fill="var(--muted)" fontSize={9} fontFamily="var(--mono)">
+                <text key={i} x={m.col * gridTotal + Y_AXIS_WIDTH} y={10} fill="var(--muted)" fontSize={9} fontFamily="var(--mono)">
                   {m.label}
                 </text>
               ))}
               {DAYS_LABELS.map((label, i) => (
                 label ? (
-                  <text key={i} x={0} y={i * TOTAL + 24 + 10} fill="var(--muted)" fontSize={9} fontFamily="var(--mono)">
+                  <text key={i} x={0} y={i * gridTotal + 24 + 10} fill="var(--muted)" fontSize={9} fontFamily="var(--mono)">
                     {label}
                   </text>
                 ) : null
@@ -286,10 +307,10 @@ export function CommitHeatmap({ data, projects, onFilterChange, title = 'Commit 
               {grid.map((cell, i) => (
                 <rect
                   key={i}
-                  x={cell.col * TOTAL + 30}
-                  y={cell.row * TOTAL + 16}
-                  width={CELL_SIZE}
-                  height={CELL_SIZE}
+                  x={cell.col * gridTotal + Y_AXIS_WIDTH}
+                  y={cell.row * gridTotal + 16}
+                  width={gridCell}
+                  height={gridCell}
                   rx={2}
                   fill={getColor(cell.count, isDark)}
                   style={{ transition: 'fill 0.15s' }}
