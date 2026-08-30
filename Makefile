@@ -9,6 +9,7 @@ MCP_VENV    := $(MCP_DIR)/venv
 BE_PORT     ?= 8000
 FE_PORT     ?= 5173
 PYTHON      ?= /opt/homebrew/bin/python3.12
+PROJECTS_DIR ?=
 
 # ── Version (single source of truth: VERSION file) ──────────────────────────
 CURRENT_VERSION := $(shell cat VERSION 2>/dev/null || echo "0.0.0")
@@ -20,7 +21,7 @@ DOCKER_TAG      ?= $(CURRENT_VERSION)
 
 # ── Install / Setup ──────────────────────────────────────────────────────────
 
-.PHONY: install install-fe install-be install-mcp
+.PHONY: install install-fe install-be install-mcp import-projects
 
 install: install-fe install-be install-mcp ## Install all dependencies
 
@@ -32,6 +33,13 @@ install-be: ## Create venv and install backend dependencies
 
 install-mcp: ## Create venv and install MCP server dependencies
 	cd $(MCP_DIR) && $(PYTHON) -m venv venv && . venv/bin/activate && pip install -r requirements.txt
+
+import-projects: ## Import local git repos into VibeFocus (PROJECTS_DIR=/path/to/repos)
+	@if [ -z "$(PROJECTS_DIR)" ]; then \
+		echo "PROJECTS_DIR is required. Example: make import-projects PROJECTS_DIR=/path/to/repos"; \
+		exit 1; \
+	fi
+	cd $(BE_DIR) && . venv/bin/activate && python import_local_projects.py --root "$(PROJECTS_DIR)"
 
 # ── Frontend ─────────────────────────────────────────────────────────────────
 

@@ -24,6 +24,8 @@ export function Header() {
       bucket_id: defaultBucket.id,
       state_id: defaultState?.id ?? null,
     }).then(p => {
+      qc.setQueryData(['projects'], (old: any) => Array.isArray(old) ? [p, ...old] : [p])
+      qc.setQueryData(['projects', p.id], p)
       qc.invalidateQueries({ queryKey: ['projects'] })
       openDrawer(p.id, 'overview')
     })
@@ -61,8 +63,8 @@ export function Header() {
           <button className="btn-icon" onClick={toggleTheme} title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}>
             {theme === 'dark' ? '☀' : '☾'}
           </button>
-          <button className="btn-icon" onClick={() => setView('settings')} title="Settings" style={{ fontSize: 15 }}>
-            ⚙
+          <button className="btn" onClick={() => setView('settings')} title="Settings">
+            ⚙ Settings
           </button>
           <button className="btn" onClick={() => setShowStates(true)}>
             ⚙ States

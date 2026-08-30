@@ -1,6 +1,8 @@
-import React, { useState, useRef } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { useProjects, showToast } from '../hooks/useProjects'
 import { api } from '../api/client'
+import type { ScanConfig, ScanResult } from '../types'
 
 const BASE = '/api'
 
@@ -9,10 +11,167 @@ export function SettingsView() {
     <div style={{ padding: 24, paddingBottom: 100, maxWidth: 800, margin: '0 auto' }}>
       <h1 style={{ fontSize: 22, fontWeight: 700, marginBottom: 24 }}>Settings</h1>
 
+      <ScanSection />
       <ExportSection />
       <ImportSection />
     </div>
   )
+}
+
+
+// ── Scan Local Repos ─────────────────────────────────────────────────────────
+
+function ScanSection() {
+  const qc = useQueryClient()
+  const [config, setConfig] = useState<ScanConfig | null>(null)
+  const [customRoot, setCustomRoot] = useState('')
+  const [recursive, setRecursive] = useState(false)
+  const [scanning, setScanning] = useState(false)
+  const [result, setResult] = useState<ScanResult | null>(null)
+  const [configError, setConfigError] = useState(false)
+
+  useEffect(() => {
+    api.data.scanConfig()
+      .then(d => {
+        setConfig(d)
+        if (d.projects_dir_raw || d.projects_dir) {
+          setCustomRoot(d.projects_dir_raw ?? d.projects_dir ?? '')
+        }
+      })
+      .catch(() => setConfigError(true))
+  }, [])
+
+  const trimmedRoot = customRoot.trim()
+  const canScan = !!trimmedRoot && !scanning
+  const configuredPathMissing = !!config?.configured && !config.exists && customRoot === (config.projects_dir_raw ?? config.projects_dir ?? '')
+
+  async function handleScan() {
+    setScanning(true)
+    setResult(null)
+    try {
+      const data = await api.data.scan({ root: trimmedRoot, recursive })
+      setResult(data)
+      qc.invalidateQueries({ queryKey: ['projects'] })
+      showToast(`Scan complete: ${data.created} new, ${data.updated} updated`)
+    } catch (e: any) {
+      showToast(`Scan failed: ${e.message}`)
+    } finally {
+      setScanning(false)
+    }
+  }
+
+  return (
+    <div style={{
+      background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12,
+      padding: 24, marginBottom: 20,
+    }}>
+      <h2 style={{ fontSize: 15, fontWeight: 700, marginBottom: 4 }}>Import Local Git Repositories</h2>
+      <p style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 16 }}>
+        Point VibeFocus at the parent folder where your git repositories live. The backend scans that folder,
+        creates missing projects, updates matching projects, and refreshes lightweight git stats. Commit history stays out of the import and can be synced later from Analytics.
+      </p>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div>
+          <label className="field-label">Directory visible to the backend</label>
+          <input
+            type="text"
+            value={customRoot}
+            onChange={e => setCustomRoot(e.target.value)}
+            placeholder="e.g. ~/code or /Users/you/Development"
+            className="field-input"
+          />
+          <div style={{ fontSize: 11, color: configuredPathMissing ? '#f59e0b' : 'var(--muted)', marginTop: 6, lineHeight: 1.5 }}>
+            {configError && 'Could not read scan configuration. You can still enter a directory manually.'}
+            {!configError && !config?.configured && (
+              <>No default is configured. Enter a path here or set <InlineCode>PROJECTS_DIR</InlineCode> in <InlineCode>backend/.env</InlineCode>.</>
+            )}
+            {!configError && config?.configured && config.exists && (
+              <>Configured default: <InlineCode>{config.projects_dir ?? config.projects_dir_raw}</InlineCode></>
+            )}
+            {configuredPathMissing && (
+              <>Configured path is not reachable from the backend: <InlineCode>{config?.projects_dir ?? config?.projects_dir_raw}</InlineCode>. If you run Docker, mount that folder with <InlineCode>PROJECTS_DIR=/path/to/repos make docker-run</InlineCode>.</>
+            )}
+          </div>
+        </div>
+
+        <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 13, cursor: 'pointer' }}>
+          <input
+            type="checkbox"
+            checked={recursive}
+            onChange={e => setRecursive(e.target.checked)}
+            style={{ marginTop: 2 }}
+          />
+          <span>
+            Search subdirectories
+            <span style={{ display: 'block', fontSize: 11, color: 'var(--muted)' }}>
+              Use this when your repos are nested under team, client, or workspace folders.
+            </span>
+          </span>
+        </label>
+
+        {scanning && (
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 10, fontSize: 12,
+            color: 'var(--muted)', background: 'var(--bg)', border: '1px solid var(--border)',
+            borderRadius: 8, padding: '10px 12px',
+          }}>
+            <span className="spinner" />
+            <span>
+              Scanning repositories and refreshing project metadata. Commit history will not be imported.
+            </span>
+          </div>
+        )}
+
+        <button
+          className="btn btn-primary"
+          onClick={handleScan}
+          disabled={!canScan}
+          style={{ alignSelf: 'flex-start' }}
+        >
+          {scanning ? 'Scanning...' : 'Scan Repositories'}
+        </button>
+
+        {result && (
+          <div style={{
+            padding: 14, background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.2)',
+            borderRadius: 8, fontSize: 12,
+          }}>
+            <div style={{ fontWeight: 600, color: '#10b981', marginBottom: 6 }}>
+              Scan complete - {result.total} repos found in {result.root}
+            </div>
+            <div style={{ marginBottom: 8 }}>
+              <strong>{result.created}</strong> new &nbsp;·&nbsp;
+              <strong>{result.updated}</strong> updated &nbsp;·&nbsp;
+              <strong>{result.skipped}</strong> skipped
+            </div>
+            <div style={{ marginBottom: 8, color: 'var(--muted)' }}>
+              Commit history was not imported. Use Analytics sync when you want heatmaps, velocity, and health history.
+            </div>
+            {result.projects.length > 0 && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                {result.projects.map((p, i) => (
+                  <div key={i} style={{ fontSize: 11, color: 'var(--muted)' }}>
+                    <span style={{
+                      display: 'inline-block', width: 58,
+                      color: p.action === 'created' ? '#10b981' : p.action === 'skipped' ? '#f59e0b' : 'var(--muted)',
+                      fontWeight: p.action === 'created' || p.action === 'skipped' ? 600 : 400,
+                    }}>{p.action}</span>
+                    {p.name}
+                    {p.error && <span style={{ color: '#f59e0b' }}> - {p.error}</span>}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function InlineCode({ children }: { children: React.ReactNode }) {
+  return <code style={{ background: 'var(--bg)', padding: '1px 4px', borderRadius: 3 }}>{children}</code>
 }
 
 

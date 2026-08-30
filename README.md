@@ -62,7 +62,9 @@ docker run -d -p 8000:8000 \
   ericblue/vibefocus:latest
 ```
 
-Open http://localhost:8000. The volume mount to your projects directory enables git sync, code analysis, and AI code exploration.
+Open http://localhost:8000. The volume mount to your projects directory enables local repo import, git sync, code analysis, and AI code exploration.
+
+On a fresh install, open Settings and use **Import Local Git Repositories** to scan the folder you mounted or configured. The scan creates projects and refreshes lightweight git stats only; use Analytics sync later when you want commit history.
 
 ### From Source
 

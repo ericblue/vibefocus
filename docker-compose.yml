@@ -9,6 +9,7 @@ services:
       - ./backend/.env
     environment:
       - DATABASE_URL=sqlite:///./data/vibefocus.db
+      - PROJECTS_DIR=${PROJECTS_DIR:-}
     volumes:
       - ./data:/app/data
       # Mount local repos (read-only) for git sync, code analysis, and AI chat.
