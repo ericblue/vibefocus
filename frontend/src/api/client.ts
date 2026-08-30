@@ -228,6 +228,8 @@ export async function streamChat(
           }
           if (currentEvent === 'status' && onStatus) {
             onStatus(data)
+          } else if (currentEvent === 'error') {
+            throw new Error(data)
           } else {
             onChunk(data)
           }
